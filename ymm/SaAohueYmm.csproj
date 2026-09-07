@@ -8,12 +8,14 @@
     <AssemblyName>SaAohueYmm</AssemblyName>
     <RootNamespace>SaAohueYmm</RootNamespace>
     <Deterministic>true</Deterministic>
+    <Version>0.2.0</Version>
     <PathMap>$(MSBuildProjectDirectory)=/_/</PathMap>
     <FxcPath Condition="'$(FxcPath)' == ''">$(WindowsSdkBinPath)x64\fxc.exe</FxcPath>
     <D2DIncludePath Condition="'$(D2DIncludePath)' == ''">$(WindowsSdkDir)Include\$(WindowsTargetPlatformVersion)\um</D2DIncludePath>
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="tests/**/*.cs" />
     <Reference Include="YukkuriMovieMaker.Controls"><HintPath>$(YMM4DirPath)YukkuriMovieMaker.Controls.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="YukkuriMovieMaker.Plugin"><HintPath>$(YMM4DirPath)YukkuriMovieMaker.Plugin.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="SharpGen.Runtime"><HintPath>$(YMM4DirPath)SharpGen.Runtime.dll</HintPath><Private>false</Private></Reference>
@@ -22,13 +24,15 @@
     <Reference Include="Vortice.DirectX"><HintPath>$(YMM4DirPath)Vortice.DirectX.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="Vortice.Mathematics"><HintPath>$(YMM4DirPath)Vortice.Mathematics.dll</HintPath><Private>false</Private></Reference>
     <EmbeddedResource Include="$(IntermediateOutputPath)LineMask.cso" LogicalName="SaAohueYmm.LineMask.cso" />
+    <EmbeddedResource Include="$(IntermediateOutputPath)GaussianHorizontal.cso" LogicalName="SaAohueYmm.GaussianHorizontal.cso" />
     <EmbeddedResource Include="$(IntermediateOutputPath)Composite.cso" LogicalName="SaAohueYmm.Composite.cso" />
   </ItemGroup>
 
-  <Target Name="CompileShaders" BeforeTargets="PrepareResources" Inputs="Shaders\LineMask.hlsl;Shaders\Composite.hlsl" Outputs="$(IntermediateOutputPath)LineMask.cso;$(IntermediateOutputPath)Composite.cso">
+  <Target Name="CompileShaders" BeforeTargets="PrepareResources" Inputs="Shaders\GaussianHorizontal.hlsl;Shaders\LineMask.hlsl;Shaders\Composite.hlsl;$(MSBuildProjectFullPath)" Outputs="$(IntermediateOutputPath)GaussianHorizontal.cso;$(IntermediateOutputPath)LineMask.cso;$(IntermediateOutputPath)Composite.cso">
     <Error Condition="!Exists('$(FxcPath)')" Text="fxc.exe was not found. Set -p:FxcPath to the Windows SDK x64 fxc.exe path." />
     <MakeDir Directories="$(IntermediateOutputPath)" />
-    <Exec Command="&quot;$(FxcPath)&quot; /nologo /I &quot;$(D2DIncludePath)&quot; /D D2D_INPUT_COUNT=1 /T ps_4_0 /E main /Fo &quot;$(IntermediateOutputPath)LineMask.cso&quot; &quot;$(MSBuildProjectDirectory)\Shaders\LineMask.hlsl&quot;" />
+    <Exec Command="&quot;$(FxcPath)&quot; /nologo /I &quot;$(D2DIncludePath)&quot; /D D2D_INPUT_COUNT=1 /T ps_4_0 /E main /Fo &quot;$(IntermediateOutputPath)GaussianHorizontal.cso&quot; &quot;$(MSBuildProjectDirectory)\Shaders\GaussianHorizontal.hlsl&quot;" />
+    <Exec Command="&quot;$(FxcPath)&quot; /nologo /I &quot;$(D2DIncludePath)&quot; /D D2D_INPUT_COUNT=2 /T ps_4_0 /E main /Fo &quot;$(IntermediateOutputPath)LineMask.cso&quot; &quot;$(MSBuildProjectDirectory)\Shaders\LineMask.hlsl&quot;" />
     <Exec Command="&quot;$(FxcPath)&quot; /nologo /I &quot;$(D2DIncludePath)&quot; /D D2D_INPUT_COUNT=2 /T ps_4_0 /E main /Fo &quot;$(IntermediateOutputPath)Composite.cso&quot; &quot;$(MSBuildProjectDirectory)\Shaders\Composite.hlsl&quot;" />
   </Target>
 </Project>
