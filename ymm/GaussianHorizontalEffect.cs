@@ -26,7 +26,7 @@ internal sealed class GaussianHorizontalEffect(IGraphicsDevicesAndContext device
         protected override void UpdateConstants()
         {
             // RGBA is packed data, not premultiplied color. Avoid 8-bit quantization.
-            drawInformation?.SetOutputBuffer(BufferPrecision.Precision32bpcFloat, ChannelDepth.Four);
+            drawInformation?.SetOutputBuffer(BufferPrecision.PerChannel32Float, ChannelDepth.Four);
             drawInformation?.SetPixelShaderConstantBuffer(_constants);
         }
         public override void MapOutputRectToInputRects(RawRect outputRect, RawRect[] inputRects)

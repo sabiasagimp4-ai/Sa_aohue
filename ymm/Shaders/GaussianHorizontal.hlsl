@@ -27,7 +27,9 @@ D2D_PS_ENTRY(main)
     {
         float2 samplePosition = p + float2(x, 0);
         if (any(samplePosition < inputBounds.xy) || any(samplePosition >= inputBounds.zw)) continue;
-        float4 c = D2DSampleInputAtPosition(0, samplePosition);
+        // Explicit LOD avoids undefined derivatives in the bounds-dependent loop.
+        float4 uv = D2DGetInputCoordinate(0);
+        float4 c = InputTexture0.SampleLevel(InputSampler0, uv.xy + uv.zw * float2(x, 0), 0);
         float a = saturate(c.a);
         float l = c.a > 0 ? luminance(decodeSrgb(saturate(c.rgb / c.a))) : 0;
         float ws = abs(x) <= smallRadius ? exp(-.5 * x * x / (scale * scale)) * smallInverseSum : 0;

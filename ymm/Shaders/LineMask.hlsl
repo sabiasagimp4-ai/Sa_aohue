@@ -24,7 +24,8 @@ D2D_PS_ENTRY(main)
     {
         float2 samplePosition = p + float2(0, y);
         if (any(samplePosition < inputBounds.xy) || any(samplePosition >= inputBounds.zw)) continue;
-        float4 h = D2DSampleInputAtPosition(0, samplePosition);
+        float4 uv = D2DGetInputCoordinate(0);
+        float4 h = InputTexture0.SampleLevel(InputSampler0, uv.xy + uv.zw * float2(0, y), 0);
         float ws = abs(y) <= smallRadius ? exp(-.5 * y * y / (scale * scale)) * smallInverseSum : 0;
         float wb = exp(-.5 * y * y / (largeScale * largeScale)) * largeInverseSum;
         sum += h * float4(ws, wb, ws, wb);
