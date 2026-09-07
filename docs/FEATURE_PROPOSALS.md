@@ -1,5 +1,7 @@
 # 新機能提案 (2026-09-07)
 
+問題側の一覧(実測値と再現手順)は [KNOWN_ISSUES.md](KNOWN_ISSUES.md) に分離した。この文書は追加したい機能を扱う。
+
 対象は現行の2実装 — After Effects版 (`src/core.h`, `src/Sa_aohue.cpp`) と YukkuriMovieMaker4版 (`ymm/`) 。
 既存の廃止経路 (MoGe-2+GTAO / Depth Anything V2) を復活させる提案は含めない。
 

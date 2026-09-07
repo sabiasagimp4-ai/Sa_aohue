@@ -57,6 +57,13 @@ Timings cover `lineArt` including allocations and thread launches. They exclude 
 final chroma/compositing, SDK checkout and AE scheduling. These are not Windows/AE
 render-time claims and will vary by CPU and concurrent rendering load.
 
+## Scope of these numbers
+
+The timings above cover `lineArt` only. Measured against the whole per-frame cost
+(`tests/hotspot_study.cpp`) that is roughly 6%: the RGB->L conversion, the `Contrast`
+gamma loop and the `chroma` composite loop are all still single-threaded and are not
+included here. See docs/KNOWN_ISSUES.md section 3.
+
 ## Verification and reproduction
 
 ```sh
