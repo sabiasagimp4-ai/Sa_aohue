@@ -1,10 +1,11 @@
 #include "../src/core.h"
-extern "C" __declspec(dllexport) int mask(const float* depth,float* output,int w,int h,float radius,float contrast,float detail,float edge) {
+extern "C" __declspec(dllexport) int line(const float* luma,float* output,int w,int h,float radius,float contrast,float edge,int invert) {
     try {
-        if(!depth||!output) return 1;
-        aohue::Field f(w,h);for(size_t i=0;i<f.d.size();++i) f.d[i]=aohue::unit(depth[i]);
-        aohue::Options p;p.radius=radius;p.contrast=contrast;p.detail=detail;p.edge=edge;
-        aohue::Kernel k(f,p);for(int y=0;y<h;++y) for(int x=0;x<w;++x) output[size_t(y)*w+x]=k.at(f,x,y,p);
+        if(!luma||!output) return 1;
+        aohue::Field f(w,h);for(size_t i=0;i<f.d.size();++i) f.d[i]=aohue::unit(luma[i]);
+        aohue::Options p;p.radius=radius;p.contrast=contrast;p.edge=edge;
+        auto m=aohue::lineArt(f,p,invert!=0);
+        for(size_t i=0;i<m.size();++i) output[i]=m[i];
         return 0;
     } catch(...) {return 1;}
 }

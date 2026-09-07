@@ -1,4 +1,8 @@
-# Sa_aohue パイプライン解説
+# Sa_aohue パイプライン解説(廃止・履歴)
+
+**この文書は2026-09-07時点の旧構成(Geometry Source 4種)を記録したものです。その後`Line Art`単体に一本化し、RGB Approximation/External Depth/External Cavity(MoGe-2+GTAO・Depth Anything V2)はプラグイン本体から削除しました。現行の構成はREADME.mdを参照してください。** 以下は削除前の設計判断・実写真比較の記録として残しています。
+
+---
 
 現状(2026-09-07時点)の全体構成の説明。README.mdの補足で、「今どういう経路でCavityが作られてAEに渡るか」を一枚で追えるようにする。
 

@@ -58,192 +58,79 @@ struct Field {
         if(w<=0||h<=0||size_t(w)*h>size_t(268435456)) throw std::length_error("image dimensions");
         d.resize(size_t(w)*h);valid.assign(d.size(),1);
     }
-    float sample(const std::vector<float>& a,float x,float y) const {
-        x=std::clamp(x,0.f,float(w-1));y=std::clamp(y,0.f,float(h-1));
-        int ix=int(x),iy=int(y),jx=std::min(ix+1,w-1),jy=std::min(iy+1,h-1);
-        float fx=x-ix,fy=y-iy;
-        return (a[size_t(iy)*w+ix]*(1-fx)+a[size_t(iy)*w+jx]*fx)*(1-fy)+(a[size_t(jy)*w+ix]*(1-fx)+a[size_t(jy)*w+jx]*fx)*fy;
-    }
 };
-// Edge-aware depth smoothing: averages a 5x5 neighborhood, down-weighting samples whose
-// depth differs from the center (range) and samples farther away (spatial). Unlike a plain
-// box blur this does not blur across a true depth edge, so it removes sensor/AI depth noise
-// without eroding real silhouettes. Fixed 2px reach keeps boundary bias inside existing
-// small-margin invariants (flat/slope fields stay exact near frame edges).
-inline void denoise(Field& f) {
-    auto b=f.d;
-    parallelFor(f.h,[&](int y0,int y1) {
-        for(int y=y0;y<y1;++y) for(int x=0;x<f.w;++x) {
-            size_t i=size_t(y)*f.w+x; if(f.valid[i]<=0) continue;
-            float z=f.d[i],sum=0,weight=0;
-            for(int dy=-2;dy<=2;++dy) for(int dx=-2;dx<=2;++dx) {
-                int xx=std::clamp(x+dx,0,f.w-1),yy=std::clamp(y+dy,0,f.h-1);size_t j=size_t(yy)*f.w+xx;
-                if(f.valid[j]<=0) continue;
-                float dd=f.d[j]-z,spatial=float(dx*dx+dy*dy);
-                float wgt=std::exp(-dd*dd*800.f-spatial*.5f);
-                sum+=f.d[j]*wgt;weight+=wgt;
-            }
-            b[i]=weight>0?sum/weight:z;
-        }
-    });
-    f.d.swap(b);
-}
-// Post-filter on a computed cavity/AO mask buffer (same w*h as f): drops near-zero noise,
-// smooths the remainder, and suppresses response near strong depth discontinuities (a sharp
-// silhouette edge is weak evidence of enclosure, not a cavity) to cut contour haloing.
-inline void cleanup(const Field& f, std::vector<float>& mask) {
-    constexpr float dead=.025f;
-    for(auto& v:mask) v=std::max(0.f,v-dead)/(1-dead);
-    auto b=mask;
-    parallelFor(f.h,[&](int y0,int y1) {
-        for(int y=y0;y<y1;++y) for(int x=0;x<f.w;++x) {
-            float sum=0;
-            for(int dy=-1;dy<=1;++dy) for(int dx=-1;dx<=1;++dx) {
-                int xx=std::clamp(x+dx,0,f.w-1),yy=std::clamp(y+dy,0,f.h-1);
-                sum+=mask[size_t(yy)*f.w+xx];
-            }
-            b[size_t(y)*f.w+x]=sum/9.f;
-        }
-    });
-    mask.swap(b);
-    parallelFor(f.h,[&](int y0,int y1) {
-    for(int y=y0;y<y1;++y) for(int x=0;x<f.w;++x) {
-        float lo=1e9f,hi=-1e9f;
-        for(int dy=-2;dy<=2;++dy) for(int dx=-2;dx<=2;++dx) {
-            int xx=std::clamp(x+dx,0,f.w-1),yy=std::clamp(y+dy,0,f.h-1);
-            float v=f.d[size_t(yy)*f.w+xx];lo=std::min(lo,v);hi=std::max(hi,v);
-        }
-        float confidence=1-unit((hi-lo-.04f)/.08f);
-        mask[size_t(y)*f.w+x]*=confidence;
-    }
-    });
-}
-struct Options { float radius=24,contrast=1,detail=.35f,edge=.5f,amount=1; float sx=1,sy=1,par=1,zscale=0; };
-struct Tap {float dx,dy,dist;};
-struct Kernel {
-    Tap taps[2][8][6]; float zscale;
-    Kernel(const Field& f,const Options& p) {
-        zscale=p.zscale>0?p.zscale:std::min(f.w*p.par/p.sx,f.h/p.sy)*.5f;
-        for(int k=0;k<2;++k) for(int a=0;a<8;++a) for(int s=0;s<6;++s) {
-            float r=std::max(1.f,p.radius*(k?.25f:1.f));float t=(s+1)/6.f;
-            const float ux[8]={1,.7071067811865476f,0,-.7071067811865476f,-1,-.7071067811865476f,0,.7071067811865476f};
-            const float uy[8]={0,.7071067811865476f,1,.7071067811865476f,0,-.7071067811865476f,-1,-.7071067811865476f};
-            float dist=std::max(1.f,r*t*t);
-            taps[k][a][s]={ux[a]*dist*p.sx/p.par,uy[a]*dist*p.sy,dist};
-        }
-    }
-    float at(const Field& f,int x,int y,const Options& p) const {
-        size_t i=size_t(y)*f.w+x;if(f.valid[i]<=0) return 0;
-        float z=f.d[i];
-        auto grad=[&](int dx,int dy) {
-            float a=f.sample(f.d,float(x+dx),float(y+dy))-z,b=z-f.sample(f.d,float(x-dx),float(y-dy));
-            bool va=f.sample(f.valid,float(x+dx),float(y+dy))>0,vb=f.sample(f.valid,float(x-dx),float(y-dy))>0;
-            if(!va&&!vb) return 0.f;if(!va) return b;if(!vb) return a;
-            return std::abs(a)<std::abs(b)?a:b;
-        };
-        float gx=grad(1,0),gy=grad(0,1),total=0;
-        for(int k=0;k<2;++k) {
-            float hor[8]={};
-            for(int a=0;a<8;++a) for(const auto& t:taps[k][a]) {
-                float xx=x+t.dx,yy=y+t.dy;
-                if(xx<0||yy<0||xx>f.w-1||yy>f.h-1) continue;
-                float dz=f.sample(f.d,xx,yy)-z;
-                float slope=std::max(0.f,(dz-gx*t.dx-gy*t.dy)*zscale/t.dist-.025f);
-                float protect=1-p.edge*unit((std::abs(dz)-.08f)/.17f);
-                float v=slope/std::sqrt(1+slope*slope)*protect*f.sample(f.valid,xx,yy);
-                hor[a]=std::max(hor[a],v);
-            }
-            // ponytail: bilateral height-field enclosure; calibrated GTAO needs camera/metric depth.
-            float v=0;for(int a=0;a<4;++a) v+=std::sqrt(hor[a]*hor[a+4])*.25f;
-            total+=(k?p.detail:1-p.detail)*v;
-        }
-        return std::pow(unit(total),1/std::max(.1f,p.contrast));
-    }
-};
-// Vogel (golden-angle) disc sample pattern -- ported from vogel_pattern() in
-// ../cool_blur/plugin/CoolBlur_Core.h. A fixed-count, deterministic, zero-meaned point set on
-// the unit disc: low-discrepancy (no clumping, unlike uniform random), and centroid-subtracted
-// so the kernel never shifts the image. Used by discBlur's large-radius path below.
-struct VogelSample { float u,v; };
-inline std::vector<VogelSample> makeVogelPattern(int count) {
-    std::vector<VogelSample> s(count>0?size_t(count):size_t(0));
-    constexpr float golden=2.39996322972865332f;
-    double mu=0,mv=0;
-    for(int i=0;i<count;++i) {
-        float rn=std::sqrt((i+.5f)/count),th=i*golden;
-        s[size_t(i)].u=rn*std::cos(th);s[size_t(i)].v=rn*std::sin(th);
-        mu+=s[size_t(i)].u;mv+=s[size_t(i)].v;
-    }
-    mu/=count;mv/=count;
-    for(size_t i=0;i<s.size();++i) {s[i].u-=float(mu);s[i].v-=float(mv);}
-    return s;
-}
-inline const std::vector<VogelSample>& vogelPattern(int n) {
-    static const std::vector<VogelSample> p64=makeVogelPattern(64);
-    static const std::vector<VogelSample> p128=makeVogelPattern(128);
-    static const std::vector<VogelSample> p256=makeVogelPattern(256);
-    if(n<=64) return p64; if(n<=128) return p128; return p256;
-}
-inline float bilinearAt(const std::vector<float>& v,int w,int h,float x,float y) {
-    x=std::clamp(x,0.f,float(w-1));y=std::clamp(y,0.f,float(h-1));
-    int x0=int(x),y0=int(y),x1=std::min(x0+1,w-1),y1=std::min(y0+1,h-1);
-    float fx=x-x0,fy=y-y0;
-    return (v[size_t(y0)*w+x0]*(1-fx)+v[size_t(y0)*w+x1]*fx)*(1-fy)
-          +(v[size_t(y1)*w+x0]*(1-fx)+v[size_t(y1)*w+x1]*fx)*fy;
-}
-// Valid-weighted, anti-aliased circular average -- ported from gather_channel() in
-// ../cool_blur/plugin/CoolBlur_Core.h (edge=0: a flat disc kernel, no bokeh shaping).
-// Isotropic and non-directional, unlike a square box blur. Small radius (<=~6px, matching
-// cool_blur's own 169-tap cutoff) uses the exact O(radius^2) disc average with an
-// anti-aliased rim; larger radius switches to the fixed-count Vogel spiral (bilinear taps),
-// which stays O(w*h*N) with N in {64,128,256} regardless of radius -- cool_blur itself drops
-// to an FFT engine past radius 8px for the same reason (paying O(radius^2) is a bad trade at
-// that point), but a bounded-sample disc still looks far rounder/softer than a box blur, which
-// is what this file needs since it is not real-time-critical in the same way as a live DoF.
-inline std::vector<float> discBlur(const std::vector<float>& v,const std::vector<float>& valid,int w,int h,float radius) {
-    if(radius<.5f) return v;
+struct Options { float radius=24,contrast=1,edge=.5f,amount=1; };
+// Exact anti-aliased disc average. Only used below for the ~1-2px DoG kernels, where sub-pixel
+// radius precision matters (radius 1.0 vs 1.6 must differ) and the O(radius^2) cost is trivial
+// either way -- unlike the large user-controlled blur further down, this one never needs to scale.
+inline std::vector<float> smallDisc(const std::vector<float>& v,const std::vector<float>& valid,int w,int h,float radius) {
     std::vector<float> out(v.size());
     int ir=int(std::ceil(radius));
-    bool exact=size_t(2*ir+1)*size_t(2*ir+1)<=169;
-    const std::vector<VogelSample>* pat=exact?nullptr:&vogelPattern(radius<=16?64:radius<=40?128:256);
     parallelFor(h,[&](int y0,int y1) {
         for(int y=y0;y<y1;++y) for(int x=0;x<w;++x) {
             float acc=0,wsum=0;
-            if(exact) {
-                for(int dy=-ir;dy<=ir;++dy) for(int dx=-ir;dx<=ir;++dx) {
-                    float rn2=(dx*dx+dy*dy)/(radius*radius);if(rn2>1) continue;
-                    float aa=std::clamp((1-std::sqrt(rn2))*radius,0.f,1.f);if(aa<=0) continue;
-                    int xx=std::clamp(x+dx,0,w-1),yy=std::clamp(y+dy,0,h-1);size_t j=size_t(yy)*w+xx;
-                    float wgt=aa*valid[j];acc+=v[j]*wgt;wsum+=wgt;
-                }
-            } else {
-                float cx=x+.5f,cy=y+.5f;
-                for(const auto& s:*pat) {
-                    float fx=cx+s.u*radius,fy=cy+s.v*radius;
-                    float wgt=bilinearAt(valid,w,h,fx,fy);
-                    acc+=bilinearAt(v,w,h,fx,fy)*wgt;wsum+=wgt;
-                }
+            for(int dy=-ir;dy<=ir;++dy) for(int dx=-ir;dx<=ir;++dx) {
+                float rn2=(dx*dx+dy*dy)/(radius*radius);if(rn2>1) continue;
+                float aa=std::clamp((1-std::sqrt(rn2))*radius,0.f,1.f);if(aa<=0) continue;
+                int xx=std::clamp(x+dx,0,w-1),yy=std::clamp(y+dy,0,h-1);size_t j=size_t(yy)*w+xx;
+                float wgt=aa*valid[j];acc+=v[j]*wgt;wsum+=wgt;
             }
             out[size_t(y)*w+x]=wsum>0?acc/wsum:v[size_t(y)*w+x];
         }
     });
     return out;
 }
-// Image-space (non-geometric) alternative map: difference-of-Gaussians line/edge detection,
-// binarize, then blur -- no AI, no external layer, cheap enough to run live in AE. f.d must
-// already hold a luminance-like field (same OKLab L extraction as RGB Approximation). Reuses
-// Options.radius as the post-binarize blur spread, Options.contrast as the final gamma, and
-// Options.edge (0..1, the "Edge Protect" slider repurposed here as "Line Threshold") as the
-// DoG binarization cutoff: 0 flags almost any gradient as a line, 1 keeps only strong ones.
+// One axis of a valid-weighted box average via a running sum (moving window): O(len) per line
+// regardless of radius, unlike a per-pixel disc/kernel sum. This is the same trick AE's own
+// "Fast Box Blur" effect uses for its speed.
+inline void boxPass(std::vector<float>& v,const std::vector<float>& valid,int w,int h,int r,bool horiz) {
+    if(r<1) return;
+    int len=horiz?w:h,lines=horiz?h:w;
+    size_t stride=horiz?size_t(1):size_t(w),lineStride=horiz?size_t(w):size_t(1);
+    std::vector<float> out(v.size());
+    parallelFor(lines,[&](int l0,int l1) {
+        std::vector<float> sumV(len+1),sumW(len+1);
+        for(int l=l0;l<l1;++l) {
+            size_t base=size_t(l)*lineStride;
+            sumV[0]=sumW[0]=0;
+            for(int i=0;i<len;++i) {
+                size_t idx=base+size_t(i)*stride;
+                sumV[i+1]=sumV[i]+v[idx]*valid[idx];sumW[i+1]=sumW[i]+valid[idx];
+            }
+            for(int i=0;i<len;++i) {
+                int lo=std::max(0,i-r),hi=std::min(len-1,i+r);
+                float wsum=sumW[hi+1]-sumW[lo];size_t idx=base+size_t(i)*stride;
+                out[idx]=wsum>0?(sumV[hi+1]-sumV[lo])/wsum:v[idx];
+            }
+        }
+    });
+    v.swap(out);
+}
+// AE "Fast Box Blur"-style blur: three box-average passes (horizontal+vertical each) at
+// radius/sqrt(3) approximate a Gaussian of the requested radius, while staying O(w*h) per pass
+// regardless of how large radius is -- replaces the old disc/Vogel sampling (which grew with
+// radius) for the one blur here whose radius is a user-facing slider.
+inline std::vector<float> fastBlur(const std::vector<float>& src,const std::vector<float>& valid,int w,int h,float radius) {
+    if(radius<.5f) return src;
+    std::vector<float> v=src;
+    int r=std::max(1,int(std::round(radius/std::sqrt(3.f))));
+    for(int pass=0;pass<3;++pass) {boxPass(v,valid,w,h,r,true);boxPass(v,valid,w,h,r,false);}
+    return v;
+}
+// Image-space line/edge detection: difference-of-Gaussians, binarize, then blur. f.d must
+// already hold a luminance-like field (OKLab L). Reuses Options.radius as the post-binarize
+// blur spread, Options.contrast as the final gamma, and Options.edge (0..1, the "Line
+// Threshold" slider) as the DoG binarization cutoff: 0 flags almost any gradient as a line, 1
+// keeps only strong ones.
 inline std::vector<float> lineArt(const Field& f,const Options& p,bool invert) {
     float threshold=std::clamp(p.edge,0.f,1.f)*.03f;
-    auto small=discBlur(f.d,f.valid,f.w,f.h,1.f),large=discBlur(f.d,f.valid,f.w,f.h,1.6f);
+    auto small=smallDisc(f.d,f.valid,f.w,f.h,1.f),large=smallDisc(f.d,f.valid,f.w,f.h,1.6f);
     std::vector<float> line(f.d.size());
     for(size_t i=0;i<line.size();++i) {
         float dog=small[i]-large[i];
         line[i]=(invert?dog>threshold:dog<-threshold)&&f.valid[i]>0?1.f:0.f;
     }
-    auto soft=discBlur(line,f.valid,f.w,f.h,p.radius);
+    auto soft=fastBlur(line,f.valid,f.w,f.h,p.radius);
     for(auto& v:soft) v=std::pow(unit(v),1/std::max(.1f,p.contrast));
     return soft;
 }
