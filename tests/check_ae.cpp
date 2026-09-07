@@ -33,6 +33,15 @@ template<class P> void check(float max) {
     v[OUTPUT_MODE].u.pd.value=1;v[AMOUNT].u.fs_d.value=0;
     assert(render<P>(&in,p,&src,&dst,max)==0);
     assert(std::memcmp(pixels.data(),output.data(),pixels.size()*sizeof(P))==0);
+    // The early bypass keeps crop/origin and out-of-input zero-fill semantics.
+    in.output_origin_x=3;in.output_origin_y=-4;
+    assert(render<P>(&in,p,&src,&crop,max)==0);
+    for(int y=0;y<crop.height;++y) for(int x=0;x<crop.width;++x) {
+        int sx=x-3,sy=y+4;
+        P expected=(sx<0||sy<0||sx>=w||sy>=h)?P{}:pixels[sy*stride+sx];
+        assert(std::memcmp(&tile[y*stride+x],&expected,sizeof(P))==0);
+    }
+    in.output_origin_x=in.output_origin_y=0;
     v[AMOUNT].u.fs_d.value=100;
     if(max==1) {
         pixels[0]={Ch(1),Ch(4),Ch(2),Ch(1)};

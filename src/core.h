@@ -4,22 +4,36 @@
 #include <vector>
 #include <stdexcept>
 #include <thread>
+#include <array>
+#include <exception>
 
 namespace aohue {
-// Splits [0,h) into row ranges and runs fn(y0,y1) on hardware_concurrency() threads (capped at
-// 16). One spawn/join per call: this file calls it a handful of times per frame (not thousands
-// like a real-time DoF), so a persistent thread pool would be needless complexity here.
+// At most 16 disjoint ranges. The calling thread runs one range; no persistent pool or
+// shared frame cache. Join even on allocation/launch failure, then propagate worker errors
+// to the render selector's existing exception handler instead of terminating the host.
 template<class F> inline void parallelFor(int h,F&& fn) {
     unsigned n=std::thread::hardware_concurrency();if(n<1) n=1;if(n>16) n=16;
     if(n<=1||h<8) {fn(0,h);return;}
     int chunk=(h+int(n)-1)/int(n);
-    std::vector<std::thread> workers;workers.reserve(n);
-    for(unsigned t=0;t<n;++t) {
-        int y0=int(t)*chunk,y1=std::min(y0+chunk,h);
-        if(y0>=y1) break;
-        workers.emplace_back(fn,y0,y1);
+    std::array<std::thread,15> workers;
+    std::array<std::exception_ptr,16> errors{};
+    unsigned started=0;
+    auto run=[&](unsigned t,int y0,int y1) {
+        try {fn(y0,y1);} catch(...) {errors[t]=std::current_exception();}
+    };
+    try {
+        for(unsigned t=1;t<n;++t) {
+            int y0=int(t)*chunk,y1=std::min(y0+chunk,h);
+            if(y0>=y1) break;
+            workers[started]=std::thread(run,t,y0,y1);++started;
+        }
+        run(0,0,std::min(chunk,h));
+    } catch(...) {
+        for(unsigned t=0;t<started;++t) workers[t].join();
+        throw;
     }
-    for(auto& w:workers) w.join();
+    for(unsigned t=0;t<started;++t) workers[t].join();
+    for(const auto& e:errors) if(e) std::rethrow_exception(e);
 }
 inline float unit(float v) { return std::isfinite(v) ? std::clamp(v,0.f,1.f) : 0.f; }
 struct RGB { float r,g,b; };
@@ -63,58 +77,107 @@ struct Options { float radius=24,contrast=1,edge=.5f,amount=1; };
 // Exact anti-aliased disc average. Only used below for the ~1-2px DoG kernels, where sub-pixel
 // radius precision matters (radius 1.0 vs 1.6 must differ) and the O(radius^2) cost is trivial
 // either way -- unlike the large user-controlled blur further down, this one never needs to scale.
+struct DiscTap {int dx,dy;float weight;};
+inline std::vector<DiscTap> discKernel(float radius) {
+    std::vector<DiscTap> taps;
+    int ir=int(std::ceil(radius));
+    for(int dy=-ir;dy<=ir;++dy) for(int dx=-ir;dx<=ir;++dx) {
+        float rn2=(dx*dx+dy*dy)/(radius*radius);if(rn2>1) continue;
+        float aa=std::clamp((1-std::sqrt(rn2))*radius,0.f,1.f);if(aa<=0) continue;
+        taps.push_back({dx,dy,aa});
+    }
+    return taps;
+}
+inline float discAt(const std::vector<float>& v,const std::vector<float>& valid,
+                    int w,int h,int x,int y,const std::vector<DiscTap>& taps) {
+    float acc=0,wsum=0;
+    for(const auto& tap:taps) {
+        int xx=std::clamp(x+tap.dx,0,w-1),yy=std::clamp(y+tap.dy,0,h-1);
+        size_t j=size_t(yy)*w+xx;
+        float wgt=tap.weight*valid[j];acc+=v[j]*wgt;wsum+=wgt;
+    }
+    return wsum>0?acc/wsum:v[size_t(y)*w+x];
+}
 inline std::vector<float> smallDisc(const std::vector<float>& v,const std::vector<float>& valid,int w,int h,float radius) {
     std::vector<float> out(v.size());
-    int ir=int(std::ceil(radius));
+    const auto taps=discKernel(radius);
     parallelFor(h,[&](int y0,int y1) {
-        for(int y=y0;y<y1;++y) for(int x=0;x<w;++x) {
-            float acc=0,wsum=0;
-            for(int dy=-ir;dy<=ir;++dy) for(int dx=-ir;dx<=ir;++dx) {
-                float rn2=(dx*dx+dy*dy)/(radius*radius);if(rn2>1) continue;
-                float aa=std::clamp((1-std::sqrt(rn2))*radius,0.f,1.f);if(aa<=0) continue;
-                int xx=std::clamp(x+dx,0,w-1),yy=std::clamp(y+dy,0,h-1);size_t j=size_t(yy)*w+xx;
-                float wgt=aa*valid[j];acc+=v[j]*wgt;wsum+=wgt;
-            }
-            out[size_t(y)*w+x]=wsum>0?acc/wsum:v[size_t(y)*w+x];
-        }
+        for(int y=y0;y<y1;++y) for(int x=0;x<w;++x)
+            out[size_t(y)*w+x]=discAt(v,valid,w,h,x,y,taps);
     });
     return out;
 }
 // One axis of a valid-weighted box average via a running sum (moving window): O(len) per line
 // regardless of radius, unlike a per-pixel disc/kernel sum. This is the same trick AE's own
 // "Fast Box Blur" effect uses for its speed.
+// out is a distinct, pre-sized scratch plane. Keeping it across the six passes avoids
+// reallocating/zero-filling for each pass. Prefix sums keep the original float order.
+inline void boxPassInto(const std::vector<float>& v,const std::vector<float>& valid,
+                        std::vector<float>& out,int w,int h,int r,bool horiz) {
+    if(horiz) {
+        parallelFor(h,[&](int l0,int l1) {
+            std::vector<float> sumV(size_t(w)+1),sumW(size_t(w)+1);
+            for(int y=l0;y<l1;++y) {
+                size_t base=size_t(y)*w;
+                sumV[0]=sumW[0]=0;
+                for(int x=0;x<w;++x) {
+                    size_t idx=base+x;
+                    sumV[x+1]=sumV[x]+v[idx]*valid[idx];sumW[x+1]=sumW[x]+valid[idx];
+                }
+                for(int x=0;x<w;++x) {
+                    int lo=std::max(0,x-r),hi=std::min(w-1,x+r);
+                    float wsum=sumW[hi+1]-sumW[lo];size_t idx=base+x;
+                    out[idx]=wsum>0?(sumV[hi+1]-sumV[lo])/wsum:v[idx];
+                }
+            }
+        });
+    } else {
+        // Adjacent columns share cache lines and vectorise across columns. Each column
+        // still accumulates top-to-bottom, without reassociation or a sliding-sum change.
+        const int block=std::min(16,w);
+        int blocks=(w+block-1)/block;
+        parallelFor(blocks,[&](int b0,int b1) {
+            std::vector<float> sumV((size_t(h)+1)*block),sumW((size_t(h)+1)*block);
+            for(int b=b0;b<b1;++b) {
+                int x0=b*block,count=std::min(block,w-x0);
+                std::fill_n(sumV.data(),count,0.f);std::fill_n(sumW.data(),count,0.f);
+                for(int y=0;y<h;++y) {
+                    size_t prev=size_t(y)*block,next=prev+block,base=size_t(y)*w+x0;
+                    for(int x=0;x<count;++x) {
+                        sumV[next+x]=sumV[prev+x]+v[base+x]*valid[base+x];
+                        sumW[next+x]=sumW[prev+x]+valid[base+x];
+                    }
+                }
+                for(int y=0;y<h;++y) {
+                    int lo=std::max(0,y-r),hi=std::min(h-1,y+r);
+                    size_t low=size_t(lo)*block,high=size_t(hi+1)*block,base=size_t(y)*w+x0;
+                    for(int x=0;x<count;++x) {
+                        float wsum=sumW[high+x]-sumW[low+x];
+                        out[base+x]=wsum>0?(sumV[high+x]-sumV[low+x])/wsum:v[base+x];
+                    }
+                }
+            }
+        });
+    }
+}
 inline void boxPass(std::vector<float>& v,const std::vector<float>& valid,int w,int h,int r,bool horiz) {
     if(r<1) return;
-    int len=horiz?w:h,lines=horiz?h:w;
-    size_t stride=horiz?size_t(1):size_t(w),lineStride=horiz?size_t(w):size_t(1);
     std::vector<float> out(v.size());
-    parallelFor(lines,[&](int l0,int l1) {
-        std::vector<float> sumV(len+1),sumW(len+1);
-        for(int l=l0;l<l1;++l) {
-            size_t base=size_t(l)*lineStride;
-            sumV[0]=sumW[0]=0;
-            for(int i=0;i<len;++i) {
-                size_t idx=base+size_t(i)*stride;
-                sumV[i+1]=sumV[i]+v[idx]*valid[idx];sumW[i+1]=sumW[i]+valid[idx];
-            }
-            for(int i=0;i<len;++i) {
-                int lo=std::max(0,i-r),hi=std::min(len-1,i+r);
-                float wsum=sumW[hi+1]-sumW[lo];size_t idx=base+size_t(i)*stride;
-                out[idx]=wsum>0?(sumV[hi+1]-sumV[lo])/wsum:v[idx];
-            }
-        }
-    });
-    v.swap(out);
+    boxPassInto(v,valid,out,w,h,r,horiz);v.swap(out);
 }
-// AE "Fast Box Blur"-style blur: three box-average passes (horizontal+vertical each) at
-// radius/sqrt(3) approximate a Gaussian of the requested radius, while staying O(w*h) per pass
-// regardless of how large radius is -- replaces the old disc/Vogel sampling (which grew with
-// radius) for the one blur here whose radius is a user-facing slider.
-inline std::vector<float> fastBlur(const std::vector<float>& src,const std::vector<float>& valid,int w,int h,float radius) {
-    if(radius<.5f) return src;
-    std::vector<float> v=src;
+// Three box-average passes, with the same radius rounding and edge normalization.
+inline void fastBlurInPlace(std::vector<float>& v,const std::vector<float>& valid,int w,int h,float radius) {
+    if(radius<.5f) return;
+    std::vector<float> scratch(v.size());
     int r=std::max(1,int(std::round(radius/std::sqrt(3.f))));
-    for(int pass=0;pass<3;++pass) {boxPass(v,valid,w,h,r,true);boxPass(v,valid,w,h,r,false);}
+    for(int pass=0;pass<3;++pass) {
+        boxPassInto(v,valid,scratch,w,h,r,true);
+        boxPassInto(scratch,valid,v,w,h,r,false);
+    }
+}
+inline std::vector<float> fastBlur(const std::vector<float>& src,const std::vector<float>& valid,int w,int h,float radius) {
+    std::vector<float> v=src;
+    fastBlurInPlace(v,valid,w,h,radius);
     return v;
 }
 // Image-space line/edge detection: difference-of-Gaussians, binarize, then blur. f.d must
@@ -124,14 +187,19 @@ inline std::vector<float> fastBlur(const std::vector<float>& src,const std::vect
 // keeps only strong ones.
 inline std::vector<float> lineArt(const Field& f,const Options& p,bool invert) {
     float threshold=std::clamp(p.edge,0.f,1.f)*.03f;
-    auto small=smallDisc(f.d,f.valid,f.w,f.h,1.f),large=smallDisc(f.d,f.valid,f.w,f.h,1.6f);
+    // Fuse the two fixed disc evaluations and threshold into one output plane. Retain
+    // the radius-1 multiply/divide: replacing it with f.d changes rounding at partial alpha.
+    const auto small=discKernel(1.f),large=discKernel(1.6f);
     std::vector<float> line(f.d.size());
-    for(size_t i=0;i<line.size();++i) {
-        float dog=small[i]-large[i];
-        line[i]=(invert?dog>threshold:dog<-threshold)&&f.valid[i]>0?1.f:0.f;
-    }
-    auto soft=fastBlur(line,f.valid,f.w,f.h,p.radius);
-    for(auto& v:soft) v=std::pow(unit(v),1/std::max(.1f,p.contrast));
-    return soft;
+    parallelFor(f.h,[&](int y0,int y1) {
+        for(int y=y0;y<y1;++y) for(int x=0;x<f.w;++x) {
+            size_t i=size_t(y)*f.w+x;
+            float dog=discAt(f.d,f.valid,f.w,f.h,x,y,small)-discAt(f.d,f.valid,f.w,f.h,x,y,large);
+            line[i]=(invert?dog>threshold:dog<-threshold)&&f.valid[i]>0?1.f:0.f;
+        }
+    });
+    fastBlurInPlace(line,f.valid,f.w,f.h,p.radius);
+    for(auto& v:line) v=std::pow(unit(v),1/std::max(.1f,p.contrast));
+    return line;
 }
 }
