@@ -86,7 +86,7 @@ class YmmV02(unittest.TestCase):
         counts = [np.count_nonzero(r > t / 255 * .08) for t in (0, 64, 128, 192, 255)]
         self.assertEqual(counts, sorted(counts, reverse=True))
         self.assertLess(np.mean(r > 128 / 255 * .08), .01)
-        self.assertIn("saturate(threshold) * .08", (ROOT / "ymm/Shaders/LineMask.hlsl").read_text())
+        self.assertIn("saturate(threshold) * .08", (ROOT / "ymm/Shaders/LineMask.hlsl").read_text(encoding="utf-8"))
 
     def test_polarity(self):
         l = np.full((31, 31), .5)
@@ -96,7 +96,7 @@ class YmmV02(unittest.TestCase):
         np.testing.assert_allclose(r, -response(1-l, np.ones_like(l)), atol=2e-6)
 
     def test_ui_order_ranges_and_removals(self):
-        source = (ROOT / "ymm/SaAohueEffect.cs").read_text()
+        source = (ROOT / "ymm/SaAohueEffect.cs").read_text(encoding="utf-8")
         labels = re.findall(r'\[Display\(Name = "([^"]+)".*?Order = (\d+)\)\]', source)
         self.assertEqual([n for n, o in sorted(labels, key=lambda p: int(p[1]))],
                          ["検出サイズ", "検出しきい値", "線を反転", "変化範囲", "コントラスト", "彩度", "輝度", "色相", "出力"])
@@ -106,14 +106,14 @@ class YmmV02(unittest.TestCase):
         self.assertIn('AnimationSlider("F1", "px", 0, 512)', source)
 
     def test_processor_contract(self):
-        source = (ROOT / "ymm/SaAohueProcessor.cs").read_text()
+        source = (ROOT / "ymm/SaAohueProcessor.cs").read_text(encoding="utf-8")
         self.assertIn("GaussianBlurOptimization.Quality", source)
         self.assertIn("_blur.StandardDeviation = radius", source)
         self.assertIn("bool bypass = radius == 0", source)
         self.assertNotIn("Math.Sqrt(3)", source)
 
     def test_shader_contract(self):
-        source = (ROOT / "ymm/Shaders/Composite.hlsl").read_text()
+        source = (ROOT / "ymm/Shaders/Composite.hlsl").read_text(encoding="utf-8")
         self.assertNotIn("isLinear", source)
         self.assertNotIn("vibrance", source)
         self.assertIn("if (contrast != 1)", source)
