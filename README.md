@@ -96,3 +96,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tests/build.ps1
 ## 8. 過去の実験(廃止)
 
 MoGe-2+GTAO(品質優先のmetric AO)、Depth Anything V2+horizon法(RGB Approximation/External Depth/External Cavity)は検討・実装しましたが、`Line Art`単体で十分と判断し、プラグイン本体からは削除しました。当時のPythonプロトタイプ(`prototype/gtao.py`, `prototype/prototype.py`等)と一次資料調査記録(`research/`)はリポジトリに残していますが、現在の`src/`とは連動していません。
+
+## 9. 出力を維持した性能改善
+
+線検出とブラーのバッファを再利用し、固定カーネル計算を画素ループの外へ移し、縦方向ブラーのメモリアクセスをまとめています。パラメーター・色変換・線の判定式は維持しています。CompositeのAmount=0では解析を省略します。
+
+旧実装との厳密比較と計算コアのベンチマークは `python tests/run_portable.py` で実行できます。詳細と測定条件は [docs/PERFORMANCE.md](docs/PERFORMANCE.md) を参照してください。**同梱の `.aex` は更新前のバイナリです。最適化を使用するにはWindowsで再ビルドが必要です。**
