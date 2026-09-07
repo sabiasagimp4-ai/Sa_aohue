@@ -7,6 +7,8 @@ YMM4 用の映像エフェクトです。AE 版の Line Art 検出、反転、�
 
 YMM4 の DLL があるフォルダと Windows SDK の Direct2D HLSL ヘッダーを指定してビルドします。`YMM4DirPath` は末尾の `\` を含めます。
 
+GitHubではActionsの`YMM4 build`を実行すると、公式YMM4 Liteを取得してビルドし、`SaAohueYmm` artifactへインストール用ZIPを保存します。
+
 ```powershell
 $Ymm4DirPath = 'C:\path\to\YMM4\'
 $FxcPath = 'C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\x64\fxc.exe'

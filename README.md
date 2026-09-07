@@ -3,6 +3,8 @@
 線画(輪郭)検出を起点に、輪郭が密な領域のOKLab Chromaを増やすAfter Effects用Windows x64 Effect Plug-inです。
 AI推論も外部Depthレイヤーも使いません。プラグイン本体は`Support Files\Plug-ins\Sabiasagi\`へ導入済みです(AEを実際に起動しての動作検証はまだ行っていません)。
 
+YukkuriMovieMaker4版は[`ymm/README.md`](ymm/README.md)を参照してください。GitHub Actionsの`YMM4 build`で、最新の公式YMM4 Liteを取得してDLLと配布ZIPまで生成します。
+
 ## 1. アルゴリズム
 
 1. 元RGB(プリマルチプライ解除後)をOKLab Lへ変換する。`RGB Encoding`でsRGB/Linear sRGBを指定する。
