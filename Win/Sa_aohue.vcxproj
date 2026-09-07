@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations"><ProjectConfiguration Include="Release|x64"><Configuration>Release</Configuration><Platform>x64</Platform></ProjectConfiguration></ItemGroup>
+  <PropertyGroup Label="Globals"><ProjectGuid>{717F74AF-1EC4-4909-BDC8-22A5A26B157E}</ProjectGuid><WindowsTargetPlatformVersion>10.0.26100.0</WindowsTargetPlatformVersion></PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="Configuration"><ConfigurationType>DynamicLibrary</ConfigurationType><PlatformToolset>v143</PlatformToolset></PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <PropertyGroup><OutDir>$(ProjectDir)..\build\</OutDir><IntDir>..\build\obj\</IntDir><TargetExt>.aex</TargetExt><TargetName>Sa_aohue</TargetName></PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile><LanguageStandard>stdcpp17</LanguageStandard><Optimization>MaxSpeed</Optimization><RuntimeLibrary>MultiThreaded</RuntimeLibrary><ExceptionHandling>Sync</ExceptionHandling><WarningLevel>Level4</WarningLevel><AdditionalIncludeDirectories>$(AE_SDK_ROOT)\Examples\Headers;$(AE_SDK_ROOT)\Examples\Headers\SP;$(AE_SDK_ROOT)\Examples\Headers\Win;$(AE_SDK_ROOT)\Examples\Util</AdditionalIncludeDirectories><PreprocessorDefinitions>MSWindows;WIN32;_WINDOWS;NOMINMAX</PreprocessorDefinitions></ClCompile>
+    <Link><SubSystem>Windows</SubSystem></Link>
+  </ItemDefinitionGroup>
+  <ItemGroup><ClCompile Include="..\src\Sa_aohue.cpp" /><ResourceCompile Include="..\build\Sa_aohuePiPL.rc" /></ItemGroup>
+  <ItemGroup><CustomBuild Include="..\src\Sa_aohuePiPL.r"><Command>cl /nologo /I "$(AE_SDK_ROOT)\Examples\Headers" /EP "%(FullPath)" &gt; "$(IntDir)Sa_aohue.rr"
+if errorlevel 1 exit /b 1
+"$(AE_SDK_ROOT)\Examples\Resources\PiPLtool.exe" "$(IntDir)Sa_aohue.rr" "$(IntDir)Sa_aohue.rrc"
+if errorlevel 1 exit /b 1
+cl /nologo /D MSWindows /EP "$(IntDir)Sa_aohue.rrc" &gt; "..\build\Sa_aohuePiPL.rc"
+if errorlevel 1 exit /b 1</Command><Outputs>$(ProjectDir)..\build\Sa_aohuePiPL.rc</Outputs></CustomBuild></ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

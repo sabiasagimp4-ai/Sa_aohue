@@ -1,0 +1,1109 @@
+<!DOCTYPE html>
+<html lang='en' class='h-100' data-color-scheme='light'>
+  <head>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="csrf-param" content="authenticity_token" />
+<meta name="csrf-token" content="9XstqXsT2_QQbtcVJ1NYYHtdGQyVei5qCy9OgTS5vwQ-DdPPSME1HKQb53EO1IMPelMKNFhaqVgXF7c2DfdFpw" />
+    <meta name="csp-nonce" />
+    <title>Chapter 12. High-Quality Ambient Occlusion | NVIDIA Developer</title>
+<meta property="og:site_name" content="NVIDIA Developer">
+<meta property="og:title" content="Chapter 12. High-Quality Ambient Occlusion">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://developer.download.nvidia.com/images/og-default.jpg">
+<meta property="og:url" content="https://developer.nvidia.com/gpugems/gpugems3/part-ii-light-and-shadows/chapter-12-high-quality-ambient-occlusion">
+<meta name="twitter:title" content="Chapter 12. High-Quality Ambient Occlusion">
+<meta name="twitter:image" content="https://developer.download.nvidia.com/images/og-default.jpg">
+<meta name="twitter:site" content="@NVIDIA">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:creator" content="@NVIDIA">
+
+    <link rel="stylesheet" href="https://developer.nvidia.com/assets/application-9e4a823de8771e59cf1ae04de333e5e14d86a990b878d196a65779d7140a6415.css" media="all" />
+      <link rel="stylesheet" href="https://developer.nvidia.com/assets/highlight-7c6157fe69da4cc401cddeb387737d6991b2012dc14e90f3d52764a3a58fd3da.css" />
+
+    <script>
+  const NvAssets = {
+    CSS: {
+      highlightJs: "https://developer.nvidia.com/assets/highlight-7c6157fe69da4cc401cddeb387737d6991b2012dc14e90f3d52764a3a58fd3da.css",
+    }
+  }
+</script>
+
+
+    
+  <link rel="stylesheet" href="https://developer.nvidia.com/assets/one-trust-bea625cf16a072ce5fdb0707a19f2645daf63c05eb1a016db72773eba008fc07.css" />
+  <script src="https://cdn.cookielaw.org/scripttemplates/otSDKStub.js" charset="UTF-8" data-document-language="true" data-domain-script="3e2b62ff-7ae7-4ac5-87c8-d5949ecafff5"></script>
+
+<script src="https://images.nvidia.com/aem-dam/Solutions/ot-js/ot-custom.js"></script>
+
+<script>
+  function OptanonWrapper() {
+    let event = new Event('bannerLoaded');
+    window.dispatchEvent(event);
+
+      if (window.OnetrustActiveGroups && window.OnetrustActiveGroups.includes("C0002")) {
+        window.DD_RUM && window.DD_RUM.init({
+          clientToken: 'pub0430c74fae5d2b467bcb8d48b13e5b32',
+          applicationId: '9fc963c7-14e6-403d-bdec-ee671550bb7f',
+          site: 'datadoghq.com',
+          service: 'devzone',
+          env: 'prod',
+          version: 'v2.60.0',
+          sessionSampleRate: 10,
+          sessionReplaySampleRate: 5,
+          trackUserInteractions: true,
+          trackResources: true,
+          trackLongTasks: true,
+          defaultPrivacyLevel: 'mask-user-input',
+        });
+      }
+  }
+</script>
+
+
+    <script>
+  (function() {
+    var didInit = false;
+    function initMunchkin() {
+      if(didInit === false) {
+        didInit = true;
+        Munchkin.init('156-OFN-742');
+      }
+    }
+    function loadMunchkin() {
+      // Munchkin falls under the OneTrust "Advertising" category (C0004); only
+      // load it once the user has consented to that category.
+      if (!window.OnetrustActiveGroups || !window.OnetrustActiveGroups.includes("C0004")) {
+        return;
+      }
+      // bannerLoaded re-fires on every consent change; once we have consent we
+      // only need to inject the script tag once.
+      window.removeEventListener('bannerLoaded', loadMunchkin);
+      var s = document.createElement('script');
+      s.type = 'text/javascript';
+      s.async = true;
+      s.src = '//munchkin.marketo.net/munchkin.js';
+      s.onreadystatechange = function() {
+        if (this.readyState == 'complete' || this.readyState == 'loaded') {
+          initMunchkin();
+        }
+      };
+      s.onload = initMunchkin;
+      document.getElementsByTagName('head')[0].appendChild(s);
+    }
+    // OnetrustActiveGroups is populated asynchronously after the OneTrust SDK
+    // loads, which dispatches "bannerLoaded" (see layouts/_one_trust). Wait for
+    // that signal so consenting users still get Munchkin, then re-check on each
+    // consent change (the didInit guard keeps init idempotent).
+    window.addEventListener('bannerLoaded', loadMunchkin);
+})();
+</script>
+
+    <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "NVIDIA Developer",
+    "url": "https://developer.nvidia.com",
+    "logo": "https://www.nvidia.com/en-us/about-nvidia/legal-info/logo-brand-usage/_jcr_content/root/responsivegrid/nv_container_392921705/nv_container_412055486/nv_image.coreimg.100.630.png/1703060329095/nvidia-logo-horz.png",
+    "sameAs": [
+      "https://github.com/nvidia",
+      "https://www.linkedin.com/company/nvidia/",
+      "https://x.com/nvidiadeveloper"
+    ]
+  }
+</script>
+
+      <link rel="stylesheet" href="https://developer.nvidia.com/assets/gpu_gems-a881bfce95294488891610c871683bdc3a6792c1c85df1bbe502a32d4a9e4d2c.css" media="all" />
+
+    <script src="https://assets.adobedtm.com/5d4962a43b79/c1061d2c5e7b/launch-191c2462b890.min.js" data-ot-ignore="true"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.3/jquery.min.js" integrity="sha512-STof4xm1wgkfm7heWqFJVn58Hm3EtS31XFaagaa8VMReCXAkQnJZ+jEy8PCC/iT18dFy95WcExNHFTqLyp72eQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+    <script src="https://developer.nvidia.com/assets/bootstrap/5.1.3/bootstrap.bundle.min-51ad1d8cab4ebd9873a0429f5e67ca717a71fd96daf8025bc04a88848e5b375c.js"></script>
+
+
+    <link rel="icon" type="image/x-icon" href="https://developer.nvidia.com/assets/favicon-81bff16cada05fcff11e5711f7e6212bdc2e0a32ee57cd640a8cf66c87a6cbe6.ico" />
+  </head>
+
+  <body class='d-flex flex-column h-100'>
+    
+    
+
+      <div id='header'></div>
+
+
+
+
+    <div class='container page gpugems_page'>
+  <div class='row'>
+    <div class='col-md-8'>
+      <div id="book_switch">
+  <a href="/gpugems/gpugems" class="btn-cta">GPUGems</a>
+  <a href="/gpugems/gpugems2" class="btn-cta">GPUGems2</a>
+  <a href="/gpugems/gpugems3" class="btn-cta">GPUGems3</a>
+</div>
+
+
+<div id="book_header">
+  <a href="https://developer.nvidia.com/gpugems3">
+    <img alt="GPU Gems 3" src="https://developer.nvidia.com/assets/gpu_gems/gpugems/GPU_Gems_3-1132ba3f12933db490097519b92b556e2a69ee58422c2fb9cf06a2d9fe00924c.jpg" />
+  </a>
+
+  <h2 class="h--huge">
+    <a href="https://developer.nvidia.com/gpugems3">GPU Gems 3</a>
+  </h2>
+
+  <p>
+    <b>GPU Gems 3</b> is now available for free online!<br><br>The CD content, including demos and content, is available on the <a target="_blank" href="https://http.download.nvidia.com/developer/GPU_Gems_3/CD/">web</a> and for <a href="https://http.download.nvidia.com/developer/GPU_Gems_3/CD/GPU_Gems_3_code.zip">download</a>.
+  </p>
+
+  <p>You can also subscribe to our <a href="http://news.developer.nvidia.com/rss.xml">Developer News Feed</a> to get notifications of new material on the site.</p>
+</div>
+
+      <h1 class="docChapterTitle" data-parent="Part II: Light and Shadows">Chapter 12. High-Quality Ambient
+        Occlusion</h1>
+
+      <p><em>Jared Hoberock<br>
+        University of Illinois at Urbana-Champaign</em></p>
+
+      <p><em>Yuntao Jia<br>
+        University of Illinois at Urbana-Champaign</em></p>
+
+      <p>Ambient occlusion is a technique used in production to approximate the effect of environment lighting. Unlike
+        the dull, flat look of local lighting models, ambient occlusion can add realism to a scene by accentuating small
+        surface details and adding soft shadows. Bunnell 2005 demonstrated a novel technique for approximating this
+        effect by integrating occlusion with an adaptive traversal of the hierarchical approximation of a model. While
+        this technique does a good job of approximating smoothly varying shadows, it makes assumptions about the input
+        model that make it not robust for general high-quality applications.</p>
+
+      <p>In this chapter, we demonstrate the problems that arise with this technique in practice. Additionally, we show
+        how a few small changes to the algorithm extend its usefulness and improve its robustness for more general
+        models that exist in production. The end result is a fast, GPU-accelerated, high-quality ambient occlusion
+        algorithm that can produce convincing, smooth soft shadows and realistic, sharp local details.</p>
+
+      <h2>12.1 Review</h2>
+
+      <p>The original technique represents a polygonal mesh with a set of approximating disks. A disk is associated with
+        each vertex of the mesh to approximate its adjacent polygons. The algorithm computes occlusion at a vertex by
+        summing shadow contributions from every other individual disk. It does so by computing the <em>form factor</em>—a
+        geometric quantity that is proportional to the disk's area and inversely proportional to the distance to it
+        squared.</p>
+
+      <p>However, this technique ignores visibility: disks that are obscured by others should not contribute any shadow.
+        The algorithm deals with this issue in the following way. First, it computes the occlusion at each disk from
+        others and stores it with that disk. However, when the shadow contribution from each disk is evaluated, it is
+        multiplied by that disk's occlusion. In this way, the algorithm approximates visibility with occlusion. If we
+        iterate with a few passes of this technique, the solution converges to a result that remarkably resembles
+        ambient occlusion—all without casting a single ray.</p>
+
+      <p>Summing each pair of disk-to-disk interactions can be quite expensive. In fact, a straightforward
+        implementation of this algorithm is <em>O</em>(<em>n</em> <sup>2</sup>), which is prohibitive in practice.
+        Instead, Bunnell observed that the contribution from distant surfaces can be approximated, while nearby surfaces
+        require a more precise computation. We can achieve this by grouping disks near each other into a single
+        aggregate disk that approximates them. We can group these aggregate disks into bigger aggregates, and so on,
+        until finally we have a single disk that approximates the entire model.</p>
+
+      <p>In this way, the algorithm creates a hierarchical tree of disks, which coarsely approximates the model near the
+        top and finely approximates it at the bottom. When we need to evaluate the occlusion at any given disk, we
+        traverse the tree starting at the top. Depending on the distance between the disk and our current level in the
+        tree, we may decide that we are far enough away to use the current approximation. If so, we replace the shadow
+        computations of many descendant disks with a single one at their ancestor. If not, we descend deeper into the
+        tree, summing the contributions from its children. This adaptive traversal transforms what would ordinarily be
+        an <em>O</em>(<em>n</em> <sup>2</sup>) computation into an efficient <em>O</em>(<em>n</em> log <em>n</em>). In
+        fact, the technique is so efficient that it can be performed in real time for deforming geometry on a GeForce
+        6800 GPU. For a detailed description of the technique, we refer the reader to Bunnell 2005.</p>
+
+      <h2>12.2 Problems</h2>
+
+      <p>The original technique is quite useful for computing smoothly varying per-vertex occlusion that may be linearly
+        interpolated across triangles. However, it would be nice if we could evaluate this occlusion function at any
+        arbitrary point. For example, a highquality renderer may wish to evaluate ambient occlusion on a per-fragment
+        basis to avoid the linear interpolation artifacts that arise from vertex interpolation. Additionally, some
+        ambient occlusion features are not smooth at all. For instance, contact shadows are sharp features that occur
+        where two surfaces come together; they are an important ingredient in establishing realism. These shadows are
+        too high frequency to be accurately reconstructed by an interpolated result. The left side of
+        <a href="javascript:popUp('elementLinks/12fig01.jpg')">Figure 12-1</a> shows both linear interpolation artifacts
+        and missing shadows due to applying this method at pervertex rates.</p>
+
+      <div class="figure">
+        <a href="javascript:popUp('elementLinks/12fig01.jpg')"><img src="https://developer.download.nvidia.com/books/gpugems3/12fig01.jpg" alt="12fig01.jpg"></a>
+        <p><a href="javascript:popUp('elementLinks/12fig01.jpg')">Figure 12-1</a> Artifacts on a Sparsely Tessellated
+          Mesh</p>
+      </div>
+
+      <p>We might try to avoid these interpolation artifacts and capture high-frequency details by increasing the
+        tessellation density of the mesh—that is, by simply adding more triangles. This is not satisfying because it
+        places an unnecessary demand on the mesh author and increases our storage requirements. But more important,
+        increasing the sampling rate in this manner exposes the first of our artifacts. These are the disk-shaped
+        regions occurring on the back of the bunny in
+        <a href="javascript:popUp('elementLinks/12fig02.jpg')">Figure 12-2</a>.</p>
+
+      <div class="figure">
+        <a href="javascript:popUp('elementLinks/12fig02.jpg')"><img src="https://developer.download.nvidia.com/books/gpugems3/12fig02.jpg" alt="12fig02.jpg"></a>
+        <p><a href="javascript:popUp('elementLinks/12fig02.jpg')">Figure 12-2</a> Artifacts on a Densely Tessellated
+          Mesh</p>
+      </div>
+
+      <p>Instead of increasing the tessellation density of the mesh, we could alternatively increase the sampling
+        density in screen space. That is, we could apply the occlusion shader on a per-fragment basis. Unfortunately,
+        the straightforward application of this shader yields the second of our problems that render this method
+        unusable as-is. The right sides of <a href="javascript:popUp('elementLinks/12fig01.jpg')">Figures 12-1</a> and
+        <a href="javascript:popUp('elementLinks/12fig02.jpg')">12-2</a> illustrate these artifacts. Notice the
+        high-frequency "pinching" features occurring near vertices of the mesh. Additionally, the increase in sampling
+        density brings the disk-shaped artifacts into full clarity.</p>
+
+      <h4>12.2.1 Disk-Shaped Artifacts</h4>
+
+      <p>Before we demonstrate how to fix these problems, it is useful to understand their origin. First, consider the
+        disk-shaped artifacts. These appear as a boundary separating a light region and a dark region of the surface.
+        Suppose we are computing occlusion from some disk at a point on one side of the boundary. As we shade points
+        closer and closer to the boundary, the distance to the disk shrinks smaller and smaller. Finally, we reach a
+        point on the boundary where our distance criterion decides that the disk is too close to provide a good
+        approximation to the mesh. At this point, we descend one level deeper into the tree and sum occlusion from the
+        disk's children.</p>
+
+      <p>Here, we have made a discrete transition in the approximation, but we expect the shadow to remain smooth. In
+        reality, there is no guarantee that the occlusion value computed from the disk on one side of the boundary will
+        be exactly equal to the sum of its children on the other side. What we are left with is a discontinuity in the
+        shadow. Because parents deeper in the tree are more likely to approximate their children well, we can make these
+        discontinuities arbitrarily faint by traversing deeper and deeper into the tree. Of course, traversing into
+        finer levels of the tree in this manner increases our workload. We would prefer a solution that is more
+        efficient.</p>
+
+      <h4>12.2.2 High-Frequency Pinching Artifacts</h4>
+
+      <p>Next, we examine the pinching artifacts. Suppose we are shading a point that is very near a disk at the bottom
+        level of the hierarchy. When we compute occlusion from this disk, its contribution will overpower those of all
+        other disks. Because the form factor is inversely proportional to the square of the distance, the problem
+        worsens as we shade closer. In effect, we are dividing by a number that becomes arbitrarily small at points
+        around the disk.</p>
+
+      <p>One solution might ignore disks that are too close to the point that we are shading. Unfortunately, there is no
+        general way to know how close is too close. This strategy also introduces a discontinuity around these ignored
+        disks. Additionally, nearby geometry is crucial for rendering sharp details such as contact shadows and creases.
+        We would like a robust solution that "just works" in all cases.</p>
+
+      <h2>12.3 A Robust Solution</h2>
+
+      <p>In this section, we describe a robust solution to the artifacts encountered in the original version of this
+        algorithm. The basic skeleton of the algorithm remains intact—we adaptively sum occlusion from a coarse
+        occlusion solution stored in a tree—but a few key changes significantly improve the robustness of the
+        result.</p>
+
+      <h4>12.3.1 Smoothing Discontinuities</h4>
+
+      <p>First, we describe our solution to the disk-shaped shadow discontinuities. Recall that there is no guarantee
+        that any given point will receive shadow from a parent disk that is exactly equal to the sum of its children.
+        However, we can force the transition to be a smooth blend between the shadows on either side of the boundary. To
+        do this, we define a zone around the transition boundary where the occlusion will be smoothly interpolated
+        between a disk's contribution and its children's.
+        <a href="javascript:popUp('elementLinks/12fig03.jpg')">Figure 12-3</a> illustrates the geometry of the
+        transition zone.</p>
+
+      <div class="figure">
+        <a href="javascript:popUp('elementLinks/12fig03.jpg')"><img src="https://developer.download.nvidia.com/books/gpugems3/12fig03.jpg" alt="12fig03.jpg"></a>
+        <p><a href="javascript:popUp('elementLinks/12fig03.jpg')">Figure 12-3</a> The Geometry of the Transition Zone
+        </p>
+      </div>
+
+      <p>Inside this zone, when we compute occlusion from a disk, we also consider the occlusion from its parent. The
+        code snippet of Listing 12-1 shows the details. First, when our distance criterion tells us we must descend into
+        the hierarchy, we note the occlusion contribution at the current level of approximation. We also note the area
+        of the disk, which the weighted blend we apply later will depend on. Finally, we compute a weight for this
+        parent disk that depends on our position inside the transition zone. You can see that when <tt>d2</tt> is at the
+        outer boundary of the zone, at <tt>tooClose * (1.0 + r)</tt>, the parent's weight is one. On the inner boundary,
+        at <tt>tooClose * (1.0 - r)</tt>, the parent's weight is zero. Inside the zone, the weight is a simple linear
+        blend between parent and children. However, a more sophisticated implementation involving a higher order
+        polynomial that takes into account grandparents could be even smoother.</p>
+
+      <p>Later, we finish our descent into the tree and sum the occlusion contribution from a disk. At this step, we
+        apply the blend. Additionally, the contribution from the parent is modulated by the ratio of the area of the
+        child to its parent's. To understand why this step is necessary, recall that the area of the parent disk is
+        equal to the sum of its children's. Because we will sum the occlusion contributed from each of the parent's
+        children, we ensure that we do not "overcount" the parent's contribution by multiplying by this ratio.</p>
+
+      <p>Note that in applying this blend, we assume that we have descended to the same depth for each of the parent's
+        children. In general, it is possible that the traversal depths for a disk's children may not be the same. A more
+        correct implementation of this blend could account for this. In our experiments, we have compensated for this
+        assumption by increasing the traversal depth.</p>
+
+      <h4>Example 12-1. Smoothing Out Discontinuities</h4>
+
+      <pre><code class="language-cpp">
+// Compute shadow contribution from the current disk.
+float contribution = ... // Stop or descend?
+    if (d2 &lt; tooClose * (1.0 + r))
+{
+  // Remember the parent&#x27;s contribution.
+  parentContribution = contribution;
+  // Remember the parent&#x27;s area.
+  parentArea = area;
+  // Compute parent&#x27;s weight: a simple linear blend.
+  parentWeight = (d2 – (1.0 – r) * tooClose) / (2.0 * r * tooClose);
+  // Traverse deeper into hierarchy.
+  ...
+}
+else
+{
+  // Compute the children&#x27;s weight.
+  childrenWeight = 1.0 – parentWeight;
+  // Blend contribution:
+  // Parent&#x27;s contribution is modulated by the ratio of the child&#x27;s
+  // area to its own.
+  occlusion += childrenWeight * contribution;
+  occlusion += parentWeight * parentContribution * (area / parentArea);
+}</code></pre>
+
+      <h4>12.3.2 Removing Pinches and Adding Detail</h4>
+
+      <p>Our solution to the pinching artifacts has two components. We begin with the placement of the finest level of
+        disks. The original version of this algorithm associated a disk with each vertex of the mesh that approximated
+        the vertex's neighboring faces. Recall that for points near these vertices, these disks are a very poor
+        approximation of the actual surface. For points around areas of high curvature, the result is large, erroneous
+        shadow values.</p>
+
+      <p>Instead of associating the finest level of disks at vertices, our solution places them at the centroid of each
+        mesh face. This is a much better approximation to the surface of the mesh, and it removes a large portion of the
+        pinching artifacts.</p>
+
+      <p>These disks represent the finest level of surface approximation, but they cannot represent the true mesh. As a
+        result, sharp shadow features in areas of high detail are noticeably absent. To attain this last level of
+        missing detail, we go one step further than the disk-based approximation. At the lowest level in the hierarchy,
+        rather than consider approximating disks, we evaluate analytic form factors from actual mesh triangles.</p>
+
+      <p>This turns out to be easier than it sounds. For a general polygon, we can analytically evaluate its form factor
+        with respect to a point via the following equation:</p>
+
+      <p><img src="https://developer.download.nvidia.com/books/gpugems3/0264equ01.jpg" alt="0264equ01.jpg"></p>
+
+      <p>This equation, found in standard global illumination texts (such as Sillion and Puech 1994), computes the form
+        factor from a polygonal source <em>A</em> to a point <em>p</em> with normal <strong>n</strong>. With each edge
+        <em>e</em> <em><sub>i</sub></em> of <em>A</em>, we associate a unit vector, <strong></strong>
+        <em><sub>i</sub></em> . <strong></strong> <em><sub>i</sub></em> is formed by taking the cross product of a
+        vector pointing along <em>e</em> <em><sub>i</sub></em> with a vector pointing from <em>p</em> to <em>e</em>
+        <em><sub>i</sub></em> 's start vertex. For each edge of <em>A</em>, we dot <strong></strong>
+        <em><sub>i</sub></em> with <strong>n</strong>, and sum.
+        <a href="javascript:popUp('elementLinks/12fig04.jpg')">Figure 12-4</a> illustrates the approach.</p>
+
+      <div class="figure">
+        <a href="javascript:popUp('elementLinks/12fig04.jpg')"><img src="https://developer.download.nvidia.com/books/gpugems3/12fig04.jpg" alt="12fig04.jpg"></a>
+        <p><a href="javascript:popUp('elementLinks/12fig04.jpg')">Figure 12-4</a> Point-to-Polygon Form Factor</p>
+      </div>
+
+      <p>This equation assumes that the entire polygon is visible. For our application, we need to determine the visible
+        portion of the polygon by clipping it to our shading point's plane of support. This is simply the plane passing
+        through the point to be shaded facing in a direction equal to the shading normal. Not performing this clipping
+        will over-estimate the true form factor and produce disturbing artifacts.
+        <a href="javascript:popUp('elementLinks/12fig05.jpg')">Figure 12-5</a> shows the geometry of the clip.</p>
+
+      <div class="figure">
+        <a href="javascript:popUp('elementLinks/12fig05.jpg')"><img src="https://developer.download.nvidia.com/books/gpugems3/12fig05.jpg" alt="12fig05.jpg"></a>
+        <p><a href="javascript:popUp('elementLinks/12fig05.jpg')">Figure 12-5</a> Clipping a Triangle to a Visible
+          Quadrilateral</p>
+      </div>
+
+      <p>Clipping a triangle by a plane results in one of three cases:</p>
+
+      <ul>
+        <li>The entire triangle lies under the plane and is not visible.</li>
+
+        <li>The triangle lies partially under the plane and is partially visible. In this case, we clip the triangle to
+          produce a quadrilateral.
+        </li>
+
+        <li>The triangle lies completely above the plane and is completely visible.</li>
+      </ul>
+
+      <p>Our clipping algorithm works by inspecting the triangle's three vertices with respect to the clipping plane. A
+        point may lie above or under a plane, but for robustness issues, we also allow a point to lie on the plane. For
+        three vertices with three possible configurations, there are 3<sup>3</sup> = 27 possible configurations in all.
+        Fortunately, the GeForce 8800's powerful branch performance quickly determines the configuration and tests only
+        five branch conditions in the worst case.</p>
+
+      <p>Listing 12-2 shows our function that computes the visible portion of a triangle. The function accepts the
+        clipping plane described by a point and normal, and the three vertices of the triangle to be clipped as input.
+        It outputs the four vertices of the visible quad of the triangle. Note that a degenerate quad with two equal
+        vertices may describe a fully visible triangle. Similarly, a degenerate quad with four equal vertices may
+        describe an invisible triangle.</p>
+
+      <p>We begin by specifying an epsilon value that will control the robustness of the clip. Vertices that are closer
+        to the plane than this value will be considered to lie on the plane. Next, we evaluate the plane equation for
+        each vertex. This results in a signed distance from each vertex to the plane. Points above the plane have a
+        positive distance; points below, a negative distance. Points that are too close to the plane have their distance
+        clamped to zero.</p>
+
+      <h4>Example 12-2. Finding the Visible Quadrilateral Portion of a Triangle</h4>
+
+      <pre><code class="language-cpp">
+void visibleQuad(float3 p, float3 n, float3 v0, float3 v1, float3 v2,
+                 out float3 q0, out float3 q1, out float3 q2, out float3 q3)
+{
+  const float epsilon = 1e-6;
+  float d = dot(n, p);
+  // Compute the signed distances from the vertices to the plane.
+  float sd[3];
+  sd[0] = dot(n, v0) – d;
+  if (abs(sd[0]) &lt; = epsilon)
+    sd[0] = 0.0;
+  sd[1] = dot(n, v1) – d;
+  if (abs(sd[1]) &lt; = epsilon)
+    sd[1] = 0.0;
+  sd[2] = dot(n, v2) – d;
+  if (abs(sd[2]) &lt; = epsilon)
+    sd[2] = 0.0;
+  // Determine case.
+  if (sd[0] &gt; 0.0)
+  {
+    if (sd[1] &gt; 0.0)
+    {
+      if (sd[2] &lt; 0.0)
+      {
+        // v0, v1 above, v2 under
+        q0 = v0;
+        q1 = v1;
+        // Evaluate ray-plane equations:
+        q2 = v1 + (sd[1] / (sd[1] - sd[2])) * (v2 - v1);
+        q3 = v0 + (sd[0] / (sd[0] - sd[2])) * (v2 - v0);
+      }
+      else
+      {
+        // v0, v1, v2 all above
+        q0 = v0;
+        q1 = v1;
+        q2 = v2;
+        q3 = q3;
+      }
+    }
+  }
+  // Other cases similarly
+  ...</code></pre>
+
+      <p>We clip the triangle by inspecting the signs of these distances. When two signs match but the other does not,
+        we must clip. In this case, two of the triangle's edges intersect the plane. The intersection points define two
+        vertices of the visible quad. Depending on which edges intersect the plane, we evaluate two ray-plane
+        intersection equations. With the visible portion of the triangle computed, we can compute its form factor with a
+        straightforward implementation of the form factor equation applied to quadrilaterals.</p>
+
+      <h2>12.4 Results</h2>
+
+      <p>Next, we compare the results of our improved algorithm to those of the original. We chose two tests, the bunny
+        and a car, to demonstrate the effectiveness of the new solution over a range of input. The bunny is a smooth,
+        well-tessellated mesh with fairly equilateral triangles. In contrast, the car has heterogeneous detail with
+        sharp angles and triangles with a wide range of aspect ratios.
+        <a href="javascript:popUp('elementLinks/12fig06.jpg')">Figures 12-6</a> and
+        <a href="javascript:popUp('elementLinks/12fig07.jpg')">12-7</a> show the results.</p>
+
+      <div class="figure">
+        <a href="javascript:popUp('elementLinks/12fig06.jpg')"><img src="https://developer.download.nvidia.com/books/gpugems3/12fig06.jpg" alt="12fig06.jpg"></a>
+        <p><a href="javascript:popUp('elementLinks/12fig06.jpg')">Figure 12-6</a> Ambient Occlusion Comparison on the
+          Bunny</p>
+      </div>
+
+      <div class="figure">
+        <a href="javascript:popUp('elementLinks/12fig07.jpg')"><img src="https://developer.download.nvidia.com/books/gpugems3/12fig07.jpg" alt="12fig07.jpg"></a>
+        <p><a href="javascript:popUp('elementLinks/12fig07.jpg')">Figure 12-7</a> Ambient Occlusion Comparison on the
+          Car</p>
+      </div>
+
+      <p>You can see that the original per-vertex algorithm is well suited to the bunny due to its dense and regular
+        tessellation. However, both disk-shaped and linear interpolation artifacts are apparent. The new algorithm
+        removes these artifacts.</p>
+
+      <p>However, the original algorithm performs worse on the car. The sparse tessellation reveals linear interpolation
+        artifacts on the per-vertex result. Applying the original shader at per-fragment rates smooths out this
+        interpolation but adds both disk-shaped discontinuities and pinching near vertices. Our new algorithm is robust
+        for both of these kinds of artifacts and produces a realistic result.</p>
+
+      <h2>12.5 Performance</h2>
+
+      <p>Here we include a short discussion of performance. In all experiments, we set epsilon, which controls traversal
+        depth, to 8. First, we measured the performance of the initial iterative steps that shade the disks of the
+        coarse occlusion hierarchy. Our implementation of this step is no different from the original algorithm and
+        serves as a comparison. Next, we measured the performance of our new shader with and without triangle clipping
+        and form factors. We used a deferred shading method to ensure that only visible fragments were shaded. Finally,
+        we counted the number of total fragments shaded to measure the shading rate. Table 12-1 and
+        <a href="javascript:popUp('elementLinks/12fig08.jpg')">Figure 12-8</a> show our performance measurements.</p>
+
+      <h4>Table 12-1. Performance Results</h4>
+
+      <table>
+        <thead>
+        <tr>
+          <td>
+            <p>Model</p>
+          </td>
+
+          <td>
+            <p>Size in Triangles</p>
+          </td>
+
+          <td>
+            <p>Total Fragments Shaded</p>
+          </td>
+
+          <td>
+            <p>Total Disks Shaded</p>
+          </td>
+        </tr>
+        </thead>
+
+        <tbody>
+        <tr>
+          <td>
+            <p><strong>Bunny</strong></p>
+          </td>
+
+          <td>
+            <p>69,451</p>
+          </td>
+
+          <td>
+            <p>381,046</p>
+          </td>
+
+          <td>
+            <p>138,901</p>
+          </td>
+        </tr>
+
+        <tr>
+          <td>
+            <p><strong>Car</strong></p>
+          </td>
+
+          <td>
+            <p>29,304</p>
+          </td>
+
+          <td>
+            <p>395,613</p>
+          </td>
+
+          <td>
+            <p>58,607</p>
+          </td>
+        </tr>
+        </tbody>
+      </table>
+
+      <div class="figure">
+        <a href="javascript:popUp('elementLinks/12fig08.jpg')"><img src="https://developer.download.nvidia.com/books/gpugems3/12fig08.jpg" alt="12fig08.jpg"></a>
+        <p><a href="javascript:popUp('elementLinks/12fig08.jpg')">Figure 12-8</a> Performance Results</p>
+      </div>
+
+      <p>We found the performance of shading disks in the hierarchy to be roughly comparable to shading fragments with
+        the high-quality form factor computations. We observed that the disk shading rate tended to be much lower than
+        per-fragment shading. We believe this is due to a smaller batch size than the total number of fragments to be
+        shaded. Including the high-quality form factor computation in the shader requires extensive branching and
+        results in a lower shading rate. However, this addition ensures a robust result.</p>
+
+      <h2>12.6 Caveats</h2>
+
+      <p>We continue with some notes on applying our algorithm in practice. First, as we previously mentioned, our
+        smoothing solution may not completely eliminate all discontinuities. However, in all cases we have been able to
+        make them arbitrarily faint by increasing the traversal depth. Additionally, because this algorithm can only
+        approximate visibility, the results are often biased on the side of exaggerated shadows and may not match a
+        reference computed by a ray tracer. To control the depth of occlusion, we introduce some tunable parameters that
+        are useful in controlling error or achieving a desired artistic result.</p>
+
+      <h4>12.6.1 Forcing Convergence</h4>
+
+      <p>Recall that this method approximates visibility by applying the occlusion algorithm to disks iteratively over
+        several passes. In our experiments, we have found that this algorithm tends not to converge to a unique solution
+        on general scenes. In particular, architectural scenes with high occlusion usually oscillate between two
+        solutions. To deal with this, we iteratively apply the original occlusion algorithm to compute disk-to-disk
+        occlusion for a few passes as before. Then, we force convergence by setting each disk's occlusion to a weighted
+        minimum of the last two results. <a href="javascript:popUp('elementLinks/12fig09.jpg')">Figure 12-9</a> presents
+        the results achieved with this adjustment; Listing 12-3 shows the code.</p>
+
+      <div class="figure">
+        <a href="javascript:popUp('elementLinks/12fig09.jpg')"><img src="https://developer.download.nvidia.com/books/gpugems3/12fig09.jpg" alt="12fig09.jpg"></a>
+        <p><a href="javascript:popUp('elementLinks/12fig09.jpg')">Figure 12-9</a> The Benefits of Using a Weighted
+          Minimum</p>
+      </div>
+
+      <h4>Example 12-3. Forcing Convergence</h4>
+
+      <pre><code class="language-cpp">
+float o0 = texture2DRect(occlusion0, diskLocation).x;
+float o1 = texture2DRect(occlusion1, diskLocation).x;
+float m = min(o0, o1);
+float M = max(o0, o1);
+// weighted blend
+occlusion = minScale * m + maxScale * M;</code></pre>
+
+      <p>Here, <tt>occlusion0</tt> and <tt>occlusion1</tt> contain the results of the last two iterations of the
+        occlusion solution. We set the result to be a blend of the two. Because this algorithm overestimates occlusion
+        in general, we bias the final result toward the smaller value. We have found 0.7 and 0.3 to be good values for
+        <tt>minScale</tt> and <tt>maxScale</tt>, respectively.</p>
+
+      <h4>12.6.2 Tunable Parameters</h4>
+
+      <p>We have noted that our method in general tends to overestimate ambient occlusion. In fact, a completely
+        enclosed environment produces a black scene! In general, ambient occlusion may not necessarily be exactly the
+        quantity we are interested in computing. More generally, we might be interested in a function that resembles
+        ambient occlusion for nearby shadow casters but falls off smoothly with distance. Such a function will produce
+        deep contrast in local details but will not completely shadow a closed environment. We introduce two tunable
+        parameters to control this effect.</p>
+
+      <h4>Distance Attenuation</h4>
+
+      <p>First, we allow the occlusion contribution of an element (whether it is a disk or a triangle) to be attenuated
+        inversely proportional to the distance to it squared. Adjusting this parameter tends to brighten the overall
+        result, as <a href="javascript:popUp('elementLinks/12fig10.jpg')">Figure 12-10</a> illustrates. Listing 12-4
+        shows the details.</p>
+
+      <div class="figure">
+        <a href="javascript:popUp('elementLinks/12fig10.jpg')"><img src="https://developer.download.nvidia.com/books/gpugems3/12fig10.jpg" alt="12fig10.jpg"></a>
+        <p><a href="javascript:popUp('elementLinks/12fig10.jpg')">Figure 12-10</a> Parameters' Effect on Result</p>
+      </div>
+
+      <h4>Example 12-4. Attenuating Occlusion by Distance</h4>
+
+      <pre><code class="language-cpp">
+// Compute the occlusion contribution from an element
+contribution = solidAngle(. . .);
+// Attenuate by distance
+contribution /= (1.0 + distanceAttenuation * e2);</code></pre>
+
+      <h4>Triangle Attenuation</h4>
+
+      <p>We also attenuate the occlusion contribution from triangles at the finest level of the hierarchy. Recall that
+        we account for point-to-triangle visibility with two factors: we clip each triangle to a plane and we modulate
+        the form factor by the triangle's occlusion. The combination of both of these factors can underestimate the true
+        visibility, because the form factor of the clipped triangle is further dampened by modulation. We can compensate
+        for this by raising the triangle's occlusion to a power before it is multiplied by its form factor and added to
+        the sum. Low values for this parameter emphasize small features such as creases and cracks, which would
+        otherwise be lost. High values lessen the influence of large, distant triangles that are probably not visible.
+        In particular, you can see this parameter's influence on the stairs' shading in
+        <a href="javascript:popUp('elementLinks/12fig10.jpg')">Figure 12-10</a>. Listing 12-5 shows the details.</p>
+
+      <h4>Example 12-5. Triangle Attenuation</h4>
+
+      <pre><code class="language-cpp">
+// Get the triangle's occlusion.
+float elementOcclusion = . . .
+// Compute the point-to-triangle form factor.
+contribution = computeFormFactor(. . .);
+// Modulate by its occlusion raised to a power.
+contribution *= pow(elementOcclusion, triangleAttenuation);</code></pre>
+
+      <h2>12.7 Future Work</h2>
+
+      <p>We have presented a robust, GPU-accelerated algorithm for computing high-quality ambient occlusion. By
+        adaptively traversing the approximation of a shadow caster, we both quickly produce smooth soft shadows and
+        reconstruct sharp local details.</p>
+
+      <p>We conclude by noting that this adaptive integration scheme is not limited to computing ambient occlusion.
+        Bunnell 2005 showed how the same scheme could be used to compute indirect lighting. We also point out that
+        subsurface scattering may be computed with the same hierarchical integration method. As shown in
+        <a href="javascript:popUp('elementLinks/12fig11.jpg')">Figure 12-11</a>, we can implement a multiple scattering
+        technique (Jensen and Buhler 2002) in our framework simply by computing irradiance at each disk and then
+        replacing calls to <tt>solidAngle()</tt> with <tt>multipleScattering()</tt>. Listing 12-6 shows the details.</p>
+
+      <div class="figure">
+        <a href="javascript:popUp('elementLinks/12fig11.jpg')"><img src="https://developer.download.nvidia.com/books/gpugems3/12fig11.jpg" alt="12fig11.jpg"></a>
+        <p><a href="javascript:popUp('elementLinks/12fig11.jpg')">Figure 12-11</a> Multiple Scattering Implemented via
+          Hierarchical Integration</p>
+      </div>
+
+      <h4>Example 12-6. Implementing Multiple Scattering</h4>
+
+      <pre><code class="language-cpp">
+float3 multipleScattering(float d2,
+                          float3 zr,     // Scattering parameters
+   float3 zv,     // defined in
+   float3 sig_tr) // Jensen and Buhler 2002
+{
+  float3 r2  = float3(d2, d2, d2);
+  float3 dr1 = rsqrt(r2 + (zr * zr));
+  float3 dv1 = rsqrt(r2 + (zv * zv));
+  float3 C1  = zr * (sig_tr + dr1);
+  float3 C2  = zv * (sig_tr + dv1);
+  float3 dL  = C1 * exp(-sig_tr/dr1) * dr1 * dr1;
+         dL += C2 * exp(-sig_tr/dv1) * dv1 * dv1;
+  return dL;
+}</code></pre>
+
+      <p>We include this effect alongside our ambient occlusion implementation on this book's accompanying DVD. Because
+        many illumination effects may be defined as an integral over scene surfaces, we encourage the reader to
+        generalize this technique to quickly generate other dazzling effects.</p>
+
+      <h2>12.8 References</h2>
+
+      <p>Bunnell, Michael. 2005. "Dynamic Ambient Occlusion and Indirect Lighting." In <em>GPU Gems 2</em>, edited by
+        Matt Pharr, pp. 223–233. Addison-Wesley.</p>
+
+      <p>Jensen, Henrik Wann, and Juan Buhler. 2002. "A Rapid Hierarchical Rendering Technique for Translucent
+        Materials." In <em>ACM Transactions on Graphics (Proceedings of SIGGRAPH 2002)</em> 21(3).</p>
+
+      <p>Sillion, François X., and Claude Puech. 1994. <em>Radiosity and Global Illumination</em>. Morgan Kaufmann.</p>
+      <!-- generated html end -->       <!-- <div align="right" style=" color:#999999;">Last Update: 12:39 07/17/2009</div> -->
+    </div>
+    <div class='col-md-4'>
+      
+<ul class='nv-list'>
+    <li class="">
+      <a href="/gpugems/gpugems3/contributors">Contributors</a>
+    </li>
+    <li class="">
+      <a href="/gpugems/gpugems3/foreword">Foreword</a>
+    </li>
+    <li class="">
+      <a href="/gpugems/gpugems3/part-i-geometry">Part I: Geometry</a>
+    </li>
+      <li>
+        <ul>
+          <li class="">
+            <a href="/gpugems/gpugems3/part-i-geometry/chapter-1-generating-complex-procedural-terrains-using-gpu">Chapter 1. Generating Complex Procedural Terrains Using the GPU</a>
+          </li>
+          <li class="">
+            <a href="/gpugems/gpugems3/part-i-geometry/chapter-2-animated-crowd-rendering">Chapter 2. Animated Crowd Rendering</a>
+          </li>
+          <li class="">
+            <a href="/gpugems/gpugems3/part-i-geometry/chapter-3-directx-10-blend-shapes-breaking-limits">Chapter 3. DirectX 10 Blend Shapes: Breaking the Limits</a>
+          </li>
+          <li class="">
+            <a href="/gpugems/gpugems3/part-i-geometry/chapter-4-next-generation-speedtree-rendering">Chapter 4. Next-Generation SpeedTree Rendering</a>
+          </li>
+          <li class="">
+            <a href="/gpugems/gpugems3/part-i-geometry/chapter-5-generic-adaptive-mesh-refinement">Chapter 5. Generic Adaptive Mesh Refinement</a>
+          </li>
+          <li class="">
+            <a href="/gpugems/gpugems3/part-i-geometry/chapter-6-gpu-generated-procedural-wind-animations-trees">Chapter 6. GPU-Generated Procedural Wind Animations for Trees</a>
+          </li>
+          <li class="">
+            <a href="/gpugems/gpugems3/part-i-geometry/chapter-7-point-based-visualization-metaballs-gpu">Chapter 7. Point-Based Visualization of Metaballs on a GPU</a>
+          </li>
+        </ul>
+      </li>
+    <li class="">
+      <a href="/gpugems/gpugems3/part-ii-light-and-shadows">Part II: Light and Shadows</a>
+    </li>
+      <li>
+        <ul>
+          <li class="">
+            <a href="/gpugems/gpugems3/part-ii-light-and-shadows/chapter-8-summed-area-variance-shadow-maps">Chapter 8. Summed-Area Variance Shadow Maps</a>
+          </li>
+          <li class="">
+            <a href="/gpugems/gpugems3/part-ii-light-and-shadows/chapter-9-interactive-cinematic-relighting-global">Chapter 9. Interactive Cinematic Relighting with Global Illumination</a>
+          </li>
+          <li class="">
+            <a href="/gpugems/gpugems3/part-ii-light-and-shadows/chapter-10-parallel-split-shadow-maps-programmable-gpus">Chapter 10. Parallel-Split Shadow Maps on Programmable GPUs</a>
+          </li>
+          <li class="">
+            <a href="/gpugems/gpugems3/part-ii-light-and-shadows/chapter-11-efficient-and-robust-shadow-volumes-using">Chapter 11. Efficient and Robust Shadow Volumes Using Hierarchical Occlusion Culling and Geometry Shaders</a>
+          </li>
+          <li class="active">
+            <a href="/gpugems/gpugems3/part-ii-light-and-shadows/chapter-12-high-quality-ambient-occlusion">Chapter 12. High-Quality Ambient Occlusion</a>
+          </li>
+          <li class="">
+            <a href="/gpugems/gpugems3/part-ii-light-and-shadows/chapter-13-volumetric-light-scattering-post-process">Chapter 13. Volumetric Light Scattering as a Post-Process</a>
+          </li>
+        </ul>
+      </li>
+    <li class="">
+      <a href="/gpugems/gpugems3/part-iii-rendering">Part III: Rendering</a>
+    </li>
+      <li>
+        <ul>
+          <li class="">
+            <a href="/gpugems/gpugems3/part-iii-rendering/chapter-14-advanced-techniques-realistic-real-time-skin">Chapter 14. Advanced Techniques for Realistic Real-Time Skin Rendering</a>
+          </li>
+          <li class="">
+            <a href="/gpugems/gpugems3/part-iii-rendering/chapter-15-playable-universal-capture">Chapter 15. Playable Universal Capture</a>
+          </li>
+          <li class="">
+            <a href="/gpugems/gpugems3/part-iii-rendering/chapter-16-vegetation-procedural-animation-and-shading-crysis">Chapter 16. Vegetation Procedural Animation and Shading in Crysis</a>
+          </li>
+          <li class="">
+            <a href="/gpugems/gpugems3/part-iii-rendering/chapter-17-robust-multiple-specular-reflections-and-refractions">Chapter 17. Robust Multiple Specular Reflections and Refractions</a>
+          </li>
+          <li class="">
+            <a href="/gpugems/gpugems3/part-iii-rendering/chapter-18-relaxed-cone-stepping-relief-mapping">Chapter 18. Relaxed Cone Stepping for Relief Mapping</a>
+          </li>
+          <li class="">
+            <a href="/gpugems/gpugems3/part-iii-rendering/chapter-19-deferred-shading-tabula-rasa">Chapter 19. Deferred Shading in Tabula Rasa</a>
+          </li>
+          <li class="">
+            <a href="/gpugems/gpugems3/part-iii-rendering/chapter-20-gpu-based-importance-sampling">Chapter 20. GPU-Based Importance Sampling</a>
+          </li>
+        </ul>
+      </li>
+    <li class="">
+      <a href="/gpugems/gpugems3/part-iv-image-effects">Part IV: Image Effects</a>
+    </li>
+      <li>
+        <ul>
+          <li class="">
+            <a href="/gpugems/gpugems3/part-iv-image-effects/chapter-21-true-impostors">Chapter 21. True Impostors</a>
+          </li>
+          <li class="">
+            <a href="/gpugems/gpugems3/part-iv-image-effects/chapter-22-baking-normal-maps-gpu">Chapter 22. Baking Normal Maps on the GPU</a>
+          </li>
+          <li class="">
+            <a href="/gpugems/gpugems3/part-iv-image-effects/chapter-23-high-speed-screen-particles">Chapter 23. High-Speed, Off-Screen Particles</a>
+          </li>
+          <li class="">
+            <a href="/gpugems/gpugems3/part-iv-image-effects/chapter-24-importance-being-linear">Chapter 24. The Importance of Being Linear</a>
+          </li>
+          <li class="">
+            <a href="/gpugems/gpugems3/part-iv-image-effects/chapter-25-rendering-vector-art-gpu">Chapter 25. Rendering Vector Art on the GPU</a>
+          </li>
+          <li class="">
+            <a href="/gpugems/gpugems3/part-iv-image-effects/chapter-26-object-detection-color-using-gpu-real-time-video">Chapter 26. Object Detection by Color: Using the GPU for Real-Time Video Image Processing</a>
+          </li>
+          <li class="">
+            <a href="/gpugems/gpugems3/part-iv-image-effects/chapter-27-motion-blur-post-processing-effect">Chapter 27. Motion Blur as a Post-Processing Effect</a>
+          </li>
+          <li class="">
+            <a href="/gpugems/gpugems3/part-iv-image-effects/chapter-28-practical-post-process-depth-field">Chapter 28. Practical Post-Process Depth of Field</a>
+          </li>
+        </ul>
+      </li>
+    <li class="">
+      <a href="/gpugems/gpugems3/part-v-physics-simulation">Part V: Physics Simulation</a>
+    </li>
+      <li>
+        <ul>
+          <li class="">
+            <a href="/gpugems/gpugems3/part-v-physics-simulation/chapter-29-real-time-rigid-body-simulation-gpus">Chapter 29. Real-Time Rigid Body Simulation on GPUs</a>
+          </li>
+          <li class="">
+            <a href="/gpugems/gpugems3/part-v-physics-simulation/chapter-30-real-time-simulation-and-rendering-3d-fluids">Chapter 30. Real-Time Simulation and Rendering of 3D Fluids</a>
+          </li>
+          <li class="">
+            <a href="/gpugems/gpugems3/part-v-physics-simulation/chapter-31-fast-n-body-simulation-cuda">Chapter 31. Fast N-Body Simulation with CUDA</a>
+          </li>
+          <li class="">
+            <a href="/gpugems/gpugems3/part-v-physics-simulation/chapter-32-broad-phase-collision-detection-cuda">Chapter 32. Broad-Phase Collision Detection with CUDA</a>
+          </li>
+          <li class="">
+            <a href="/gpugems/gpugems3/part-v-physics-simulation/chapter-33-lcp-algorithms-collision-detection-using-cuda">Chapter 33. LCP Algorithms for Collision Detection Using CUDA</a>
+          </li>
+          <li class="">
+            <a href="/gpugems/gpugems3/part-v-physics-simulation/chapter-34-signed-distance-fields-using-single-pass-gpu">Chapter 34. Signed Distance Fields Using Single-Pass GPU Scan Conversion of Tetrahedra</a>
+          </li>
+          <li class="">
+            <a href="/gpugems/gpugems3/part-v-physics-simulation/chapter-35-fast-virus-signature-matching-gpu">Chapter 35. Fast Virus Signature Matching on the GPU</a>
+          </li>
+        </ul>
+      </li>
+    <li class="">
+      <a href="/gpugems/gpugems3/part-vi-gpu-computing">Part VI: GPU Computing</a>
+    </li>
+      <li>
+        <ul>
+          <li class="">
+            <a href="/gpugems/gpugems3/part-vi-gpu-computing/chapter-36-aes-encryption-and-decryption-gpu">Chapter 36. AES Encryption and Decryption on the GPU</a>
+          </li>
+          <li class="">
+            <a href="/gpugems/gpugems3/part-vi-gpu-computing/chapter-37-efficient-random-number-generation-and-application">Chapter 37. Efficient Random Number Generation and Application Using CUDA</a>
+          </li>
+          <li class="">
+            <a href="/gpugems/gpugems3/part-vi-gpu-computing/chapter-38-imaging-earths-subsurface-using-cuda">Chapter 38. Imaging Earth&#39;s Subsurface Using CUDA</a>
+          </li>
+          <li class="">
+            <a href="/gpugems/gpugems3/part-vi-gpu-computing/chapter-39-parallel-prefix-sum-scan-cuda">Chapter 39. Parallel Prefix Sum (Scan) with CUDA</a>
+          </li>
+          <li class="">
+            <a href="/gpugems/gpugems3/part-vi-gpu-computing/chapter-40-incremental-computation-gaussian">Chapter 40. Incremental Computation of the Gaussian</a>
+          </li>
+          <li class="">
+            <a href="/gpugems/gpugems3/part-vi-gpu-computing/chapter-41-using-geometry-shader-compact-and-variable-length">Chapter 41. Using the Geometry Shader for Compact and Variable-Length GPU Feedback</a>
+          </li>
+        </ul>
+      </li>
+    <li class="">
+      <a href="/gpugems/gpugems3/preface">Preface</a>
+    </li>
+</ul>
+
+    </div>
+  </div>
+</div>
+
+
+
+    
+    <script src="https://developer.nvidia.com/assets/nv-developer-menu-8ae864e49d5d53c328146a66e7ad6d73242af7511f642a7d1aa1ffedd496f826.js"></script>
+  <div id='footer' class='mt-auto'></div>
+  <script src="https://www.nvidia.com/content/dam/en-zz/Solutions/librarian/bundle-search-prod-pub-v3.1.js"></script>
+  <div id="librarian-overlay"></div>
+  <script defer>
+    setTimeout(() => {
+      LIBRARIAN.Home.mount({
+        elementId: 'librarian-overlay',
+        searchPage: false,
+        placeholder: '',
+        site: 'https://developer.nvidia.com',
+        retainFilters: true,
+        overlay: true,
+        pillsOpen: true,
+        suggestedSearchPills: []
+      })
+    }, 1000)
+  </script>
+<script>
+  let menuLocale = 'en';
+
+  if (menuLocale == 'en') {
+    menuLocale = 'en-US';
+  }
+
+  function mountHeader(data = false) {
+    const headerTarget = document.getElementById('header');
+    if (!headerTarget) {
+      return;
+    }
+    let options = {
+      baseURL: window.location.origin,
+      signedIn: false,
+      locale: menuLocale
+    };
+
+    if (data) {
+      options.secondaryMenu = data;
+    }
+
+
+    options.showMembershipCardLink = true;
+
+    new NVDeveloperHeader({
+      target: headerTarget,
+      props: options
+    });
+  }
+
+  function mountFooter(data = false) {
+    const footerTarget = document.getElementById('footer');
+    if (!footerTarget) {
+      return;
+    }
+    let options = {
+      menu: data,
+      locale: menuLocale
+    };
+
+    new NVDeveloperFooter({
+      target: document.getElementById('footer'),
+      props: options
+    });
+  }
+
+  let url = 'd29g4g2dyqv443.cloudfront.net';
+  let headerMenuURL = "https://d29g4g2dyqv443.cloudfront.net/menu/en-US/header-secondary.json";
+
+  if (headerMenuURL) {
+    fetch(headerMenuURL)
+      .then(response => response.json())
+      .then(data => {
+        mountHeader(data);
+      })
+      .catch((error) => {
+        mountHeader();
+        window.nv.tracing.addError('menu', error);
+      });
+  } else {
+    mountHeader();
+  }
+
+  fetch(`https://${url}/menu/${menuLocale}/footer.json`)
+    .then(response => response.json())
+    .then(data => {
+      mountFooter(data);
+    })
+    .catch((error) => {
+      mountFooter();
+      window.nv.tracing.addError('menu', error);
+    });
+</script>
+
+      <script src="https://www.datadoghq-browser-agent.com/us1/v5/datadog-rum.js"></script>
+
+    
+    
+      <script>
+  let silentAuthHost = 'www.nvidia.com';
+  let crossOriginPageUrl = `https://${silentAuthHost}/auth/hints/`;
+
+  function readHint() {
+    return new Promise((resolve) => {
+      const { origin: targetOrigin } = new URL(crossOriginPageUrl);
+
+      const iframe = document.createElement('iframe');
+      iframe.hidden = true;
+      iframe.src = crossOriginPageUrl;
+
+      function responseHandler(event) {
+        if (event.origin === targetOrigin) {
+          iframe.parentNode.removeChild(iframe);
+          return resolve(event.data);
+        }
+      }
+
+      window.addEventListener('message', responseHandler, { once: true });
+
+      iframe.onload = () => {
+        iframe.contentWindow.postMessage({ type: 'read' }, targetOrigin);
+      }
+
+      document.body.appendChild(iframe);
+    });
+  }
+
+  function writeHint(login_hint, idp_id, timestamp, sub) {
+    const { origin: targetOrigin } = new URL(crossOriginPageUrl);
+
+    const iframe = document.createElement('iframe');
+    iframe.hidden = true;
+    iframe.src = crossOriginPageUrl;
+
+    iframe.onload = () => {
+      const message = { type: 'write', login_hint, idp_id, timestamp, sub };
+      iframe.contentWindow.postMessage(message, targetOrigin);
+    }
+
+    document.body.appendChild(iframe);
+  }
+
+  function deleteHint() {
+    const { origin: targetOrigin } = new URL(crossOriginPageUrl);
+
+    const iframe = document.createElement('iframe');
+    iframe.hidden = true;
+    iframe.src = crossOriginPageUrl;
+
+    iframe.onload = () => {
+      iframe.contentWindow.postMessage({ type: 'delete' }, targetOrigin);
+    }
+
+    document.body.appendChild(iframe);
+  }
+
+
+</script>
+
+    <script>_satellite.pageBottom();</script>
+    <script src="https://api-prod.nvidia.com/search/nvidia-search-library.js"></script>
+
+    <script src="https://developer.nvidia.com/assets/nv-gallery-widget-d1571cad15d961fd3ba013f57119be04a2adf32aa31b16be44a0f10f4671c37b.js"></script>
+    <script src="https://developer.nvidia.com/packs/js/runtime-f904b50470fcb0ec9bf4.js" defer="defer"></script>
+<script src="https://developer.nvidia.com/packs/js/4692-e2ed051c68e93113bb58.js" defer="defer"></script>
+<script src="https://developer.nvidia.com/packs/js/2681-6ac336ff34441936c0fb.js" defer="defer"></script>
+<script src="https://developer.nvidia.com/packs/js/2778-e8f3c5f27fbb1956fdb2.js" defer="defer"></script>
+<script src="https://developer.nvidia.com/packs/js/9878-baa65d618824b708a55b.js" defer="defer"></script>
+<script src="https://developer.nvidia.com/packs/js/8465-f321c9c28242e4383fa8.js" defer="defer"></script>
+<script src="https://developer.nvidia.com/packs/js/4622-1cd0dbd2a0f0b5243900.js" defer="defer"></script>
+<script src="https://developer.nvidia.com/packs/js/3566-c56dfeed5cc4ed4a9b8f.js" defer="defer"></script>
+<script src="https://developer.nvidia.com/packs/js/486-1ddc749b634c231b0122.js" defer="defer"></script>
+<script src="https://developer.nvidia.com/packs/js/8311-71b2da0387dad11f356f.js" defer="defer"></script>
+<script src="https://developer.nvidia.com/packs/js/1252-6d8bb3f37b33aca41843.js" defer="defer"></script>
+<script src="https://developer.nvidia.com/packs/js/8823-bac8f579788282b3f2cd.js" defer="defer"></script>
+<script src="https://developer.nvidia.com/packs/js/2104-29621183e9a96bb055ad.js" defer="defer"></script>
+<script src="https://developer.nvidia.com/packs/js/6900-b1b00a8ef19d3868862c.js" defer="defer"></script>
+<script src="https://developer.nvidia.com/packs/js/application-afbb46c9b6cc3093d8f1.js" defer="defer"></script>
+<script src="https://developer.nvidia.com/packs/js/ls_track-d4505a41101e752062c8.js" defer="defer"></script>
+<script src="https://developer.nvidia.com/packs/js/highlight-94c491bbd748f7a71f70.js" defer="defer"></script>
+  </body>
+</html>

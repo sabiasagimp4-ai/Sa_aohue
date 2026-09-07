@@ -1,0 +1,9 @@
+build/*
+!build/Sa_aohue.aex
+models/
+samples/
+__pycache__/
+*.pyc
+results/
+docs/pipeline_examples/
+.venv/

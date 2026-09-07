@@ -1,0 +1,9 @@
+numpy
+Pillow
+scipy
+torch
+transformers>=4.42,<5
+# MoGe (git+MIT) pulls huggingface-hub>=1.0, which breaks transformers>=4.42,<5 above
+# (it needs huggingface-hub<1.0). Install moge first, then re-pin: see prototype/gtao.py.
+git+https://github.com/microsoft/MoGe.git
+huggingface-hub<1.0,>=0.34.0
