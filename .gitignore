@@ -7,3 +7,5 @@ __pycache__/
 results/
 docs/pipeline_examples/
 .venv/
+ymm/**/bin/
+ymm/**/obj/
