@@ -76,6 +76,8 @@ internal sealed class SaAohueProcessor : IVideoEffectProcessor
         _composite.Amount = (float)(_item.Amount.GetValue(frame, length, fps) / 100.0);
         _composite.Contrast = (float)_item.Contrast.GetValue(frame, length, fps);
         _composite.Brightness = (float)(_item.Brightness.GetValue(frame, length, fps) / 100.0);
+        _composite.HueShift = (float)_item.HueShift.GetValue(frame, length, fps);
+        _composite.Vibrance = (float)(_item.Vibrance.GetValue(frame, length, fps) / 100.0);
         _composite.OutputMode = (float)_item.OutputMode;
         _composite.Linear = isLinear;
         return effectDescription.DrawDescription;

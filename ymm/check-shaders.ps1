@@ -7,5 +7,17 @@ foreach ($name in @('LineMask', 'Composite')) {
     foreach ($semantic in @('SCENE_POSITION', 'TEXCOORD')) {
         if ($assembly -notmatch $semantic) { throw "$name has no $semantic input" }
     }
+    if ($name -eq 'Composite') {
+        foreach ($entry in @(
+            @('amount', 0), @('contrast', 4), @('outputMode', 8), @('isLinear', 12),
+            @('brightness', 16), @('hueShift', 20), @('vibrance', 24), @('padding', 28)
+        )) {
+            $field, $offset = $entry
+            if ($assembly -notmatch "float\s+$field;\s+// Offset:\s+$offset\s") {
+                throw "Composite constant $field is not at byte offset $offset"
+            }
+        }
+        Write-Output 'PASS: Composite constant buffer layout is 32 bytes'
+    }
     Write-Output "PASS: $name receives Direct2D coordinates"
 }

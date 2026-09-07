@@ -13,17 +13,21 @@ internal sealed class CompositeEffect(IGraphicsDevicesAndContext devices) : D2D1
     public float OutputMode { set => SetValue(2, value); }
     public float Linear { set => SetValue(3, value); }
     public float Brightness { set => SetValue(4, value); }
+    public float HueShift { set => SetValue(5, value); }
+    public float Vibrance { set => SetValue(6, value); }
 
     [CustomEffect(2)]
     private sealed class Impl : D2D1CustomShaderEffectImplBase<Impl>
     {
         private Constants _constants = new() { Amount = 1f, Contrast = 1f, Brightness = 1f };
 
-        [CustomEffectProperty(PropertyType.Float, 0)] public float Amount { get => _constants.Amount; set { _constants.Amount = Math.Clamp(value, 0f, 4f); UpdateConstants(); } }
+        [CustomEffectProperty(PropertyType.Float, 0)] public float Amount { get => _constants.Amount; set { _constants.Amount = Math.Clamp(value, -1f, 4f); UpdateConstants(); } }
         [CustomEffectProperty(PropertyType.Float, 1)] public float Contrast { get => _constants.Contrast; set { _constants.Contrast = Math.Clamp(value, .1f, 4f); UpdateConstants(); } }
         [CustomEffectProperty(PropertyType.Float, 2)] public float OutputMode { get => _constants.OutputMode; set { _constants.OutputMode = Math.Clamp(MathF.Round(value), 0f, 2f); UpdateConstants(); } }
         [CustomEffectProperty(PropertyType.Float, 3)] public float Linear { get => _constants.Linear; set { _constants.Linear = value >= .5f ? 1f : 0f; UpdateConstants(); } }
         [CustomEffectProperty(PropertyType.Float, 4)] public float Brightness { get => _constants.Brightness; set { _constants.Brightness = Math.Clamp(value, 0f, 2f); UpdateConstants(); } }
+        [CustomEffectProperty(PropertyType.Float, 5)] public float HueShift { get => _constants.HueShift; set { _constants.HueShift = Math.Clamp(value, -180f, 180f); UpdateConstants(); } }
+        [CustomEffectProperty(PropertyType.Float, 6)] public float Vibrance { get => _constants.Vibrance; set { _constants.Vibrance = Math.Clamp(value, 0f, 1f); UpdateConstants(); } }
 
         public Impl() : base(ShaderResourceLoader.Get("Composite")) { }
         protected override void UpdateConstants() => drawInformation?.SetPixelShaderConstantBuffer(_constants);
@@ -38,7 +42,7 @@ internal sealed class CompositeEffect(IGraphicsDevicesAndContext devices) : D2D1
         private struct Constants
         {
             public float Amount, Contrast, OutputMode, Linear;
-            public float Brightness, Padding0, Padding1, Padding2;
+            public float Brightness, HueShift, Vibrance, Padding;
         }
     }
 }
