@@ -1,0 +1,30 @@
+name: Core regression
+on:
+  pull_request:
+  push:
+    branches: [master]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: python3 tests/run_portable.py
+      - run: python3 tests/run_portable.py --sanitize
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Compare with MSVC precise floating point
+        shell: pwsh
+        run: |
+          $vs = & "${env:ProgramFiles(x86)}/Microsoft Visual Studio/Installer/vswhere.exe" -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          $cmd = 'call "' + $vs + '\VC\Auxiliary\Build\vcvars64.bat" && python tests/run_portable.py'
+          cmd /c $cmd
+          if ($LASTEXITCODE -ne 0) { throw 'Core regression failed' }

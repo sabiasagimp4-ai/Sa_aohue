@@ -60,6 +60,20 @@ template<class Pixel> static PF_Err render(PF_InData* in,PF_ParamDef** p,PF_Effe
     }
     bool linear=p[TRANSFER]->u.pd.value==2;
     auto o=options(p);int mode=p[OUTPUT_MODE]->u.pd.value;
+    // Composite Amount=0 is already an exact copy. Bypass before allocating the
+    // luminance/validity fields or running any neighborhood/color calculations.
+    if(mode==1&&o.amount==0) {
+        for(int y=0;y<dst->height;++y) {
+            if(PF_Err e=PF_ABORT(in)) return e;
+            auto output=row<Pixel>(dst,y);
+            int yy=y-in->output_origin_y;
+            for(int x=0;x<dst->width;++x) {
+                int xx=x-in->output_origin_x;
+                output[x]=(xx<0||yy<0||xx>=src->width||yy>=src->height)?Pixel{}:row<Pixel>(src,yy)[xx];
+            }
+        }
+        return PF_Err_NONE;
+    }
     aohue::Field f(src->width,src->height);
     for(int y=0;y<f.h;++y) {
         if(PF_Err e=PF_ABORT(in)) return e;
