@@ -24,21 +24,25 @@ public sealed class SaAohueEffect : VideoEffectBase
     [AnimationSlider("F2", "", 0.1, 4)]
     public Animation Contrast { get; } = new(1, 0.1, 4);
 
-    [Display(Name = "出力", Description = "合成または線マスクを出力", Order = 3)]
+    [Display(Name = "輝度", Description = "出力のOKLab輝度", Order = 3)]
+    [AnimationSlider("F1", "%", 0, 200)]
+    public Animation Brightness { get; } = new(100, 0, 200);
+
+    [Display(Name = "出力", Description = "合成または線マスクを出力", Order = 4)]
     [EnumComboBox]
     public SaAohueOutputMode OutputMode { get => _outputMode; set => Set(ref _outputMode, value); }
     private SaAohueOutputMode _outputMode = SaAohueOutputMode.Composite;
 
-    [Display(Name = "線を反転", Description = "検出する線の明暗側を反転", Order = 4)]
+    [Display(Name = "線を反転", Description = "検出する線の明暗側を反転", Order = 5)]
     [ToggleSlider]
     public bool InvertLines { get => _invertLines; set => Set(ref _invertLines, value); }
     private bool _invertLines;
 
-    [Display(Name = "線しきい値", Description = "大きいほど強い線だけを検出", Order = 5)]
-    [AnimationSlider("F1", "%", 0, 100)]
-    public Animation LineThreshold { get; } = new(50, 0, 100);
+    [Display(Name = "線しきい値", Description = "大きいほど強い線だけを検出", Order = 6)]
+    [AnimationSlider("F0", "", 0, 255)]
+    public Animation LineThreshold { get; } = new(128, 0, 255);
 
-    [Display(Name = "RGB エンコード", Description = "入力が線形 sRGB の場合に切り替え", Order = 6)]
+    [Display(Name = "RGB エンコード", Description = "入力が線形 sRGB の場合に切り替え", Order = 7)]
     [EnumComboBox]
     public SaAohueRgbEncoding RgbEncoding { get => _rgbEncoding; set => Set(ref _rgbEncoding, value); }
     private SaAohueRgbEncoding _rgbEncoding = SaAohueRgbEncoding.Srgb;
@@ -47,7 +51,7 @@ public sealed class SaAohueEffect : VideoEffectBase
 
     public override IVideoEffectProcessor CreateVideoEffect(IGraphicsDevicesAndContext devices) => new SaAohueProcessor(devices, this);
 
-    protected override IEnumerable<IAnimatable> GetAnimatables() => [Amount, Radius, Contrast, LineThreshold];
+    protected override IEnumerable<IAnimatable> GetAnimatables() => [Amount, Radius, Contrast, Brightness, LineThreshold];
 }
 
 public enum SaAohueOutputMode { Composite, Lines, LinesInverted }

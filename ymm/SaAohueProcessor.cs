@@ -68,13 +68,14 @@ internal sealed class SaAohueProcessor : IVideoEffectProcessor
         var frame = effectDescription.ItemPosition.Frame;
         var length = effectDescription.ItemDuration.Frame;
         var fps = effectDescription.FPS;
-        _mask.Threshold = (float)(_item.LineThreshold.GetValue(frame, length, fps) / 100.0);
+        _mask.Threshold = (float)(_item.LineThreshold.GetValue(frame, length, fps) / 255.0);
         _mask.Invert = _item.InvertLines ? 1f : 0f;
         var isLinear = _item.RgbEncoding == SaAohueRgbEncoding.LinearSrgb ? 1f : 0f;
         _mask.Linear = isLinear;
         _blur.StandardDeviation = Math.Max(0.1f, (float)(_item.Radius.GetValue(frame, length, fps) / Math.Sqrt(3)));
         _composite.Amount = (float)(_item.Amount.GetValue(frame, length, fps) / 100.0);
         _composite.Contrast = (float)_item.Contrast.GetValue(frame, length, fps);
+        _composite.Brightness = (float)(_item.Brightness.GetValue(frame, length, fps) / 100.0);
         _composite.OutputMode = (float)_item.OutputMode;
         _composite.Linear = isLinear;
         return effectDescription.DrawDescription;
