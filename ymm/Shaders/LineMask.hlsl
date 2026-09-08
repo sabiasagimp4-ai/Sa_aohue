@@ -1,5 +1,6 @@
 #define D2D_ENTRY main
 #include <d2d1effecthelpers.hlsli>
+#include "LineControls.hlsli"
 
 float threshold;
 float invertLines;
@@ -7,8 +8,8 @@ float scale;
 float positiveLobe;
 float smallInverseSum;
 float largeInverseSum;
-float padding0;
-float padding1;
+float strengthInfluence;
+float stability;
 float4 inputBounds;
 
 D2D_PS_ENTRY(main)
@@ -35,6 +36,11 @@ D2D_PS_ENTRY(main)
     float dog = (smallL - largeL) / max(positiveLobe, 1e-6);
     float response = invertLines > .5 ? dog : -dog;
     // Calibrated AFTER positive-lobe normalization (see README).
-    float edgeMask = response > saturate(threshold) * .08 ? 1 : 0;
-    return float4(edgeMask * alpha, edgeMask * alpha, edgeMask * alpha, alpha);
+    float cutoff = saturate(threshold) * .08;
+    // Fixed normalization, never normalized by a frame's strongest edge.
+    float edgeMask = LineWeight(response, cutoff, strengthInfluence, stability);
+    // G carries an edge-weighted local luminance reference through the blur.
+    // B carries binary connectivity independently of strength/soft threshold.
+    return float4(edgeMask * alpha, edgeMask * saturate(largeL) * alpha,
+                  (response > cutoff ? 1 : 0) * alpha, alpha);
 }

@@ -11,7 +11,9 @@ internal sealed class SaAohueProcessor : IVideoEffectProcessor
     private readonly GaussianHorizontalEffect? _horizontal;
     private float _lastScale = float.NaN;
     private bool _blurBypassed;
+    private bool _cleanupBypassed;
     private readonly LineMaskEffect? _mask;
+    private readonly PointCleanupEffect? _cleanup;
     private readonly GaussianBlur? _blur;
     private readonly CompositeEffect? _composite;
     private readonly ID2D1Image? _output;
@@ -22,6 +24,7 @@ internal sealed class SaAohueProcessor : IVideoEffectProcessor
         _item = item;
         GaussianHorizontalEffect? horizontal = null;
         LineMaskEffect? mask = null;
+        PointCleanupEffect? cleanup = null;
         GaussianBlur? blur = null;
         CompositeEffect? composite = null;
         ID2D1Image? output = null;
@@ -29,21 +32,26 @@ internal sealed class SaAohueProcessor : IVideoEffectProcessor
         {
             horizontal = new GaussianHorizontalEffect(devices);
             mask = new LineMaskEffect(devices);
+            cleanup = new PointCleanupEffect(devices);
             blur = new GaussianBlur(devices.DeviceContext);
             blur.Optimization = GaussianBlurOptimization.Quality;
             blur.BorderMode = BorderMode.Soft;
             composite = new CompositeEffect(devices);
-            if (!horizontal.IsEnabled || !mask.IsEnabled || !composite.IsEnabled)
+            if (!horizontal.IsEnabled || !mask.IsEnabled || !cleanup.IsEnabled || !composite.IsEnabled)
                 return;
             using (var horizontalOutput = horizontal.Output)
                 mask.SetInput(0, horizontalOutput, true);
             using (var maskOutput = mask.Output)
-                blur.SetInput(0, maskOutput, true);
+                cleanup.SetInput(0, maskOutput, true);
+            using (var cleanOutput = cleanup.Output)
+                blur.SetInput(0, cleanOutput, true);
             using (var blurredMask = blur.Output)
                 composite.SetInput(1, blurredMask, true);
             output = composite.Output;
             _mask = mask; _blur = blur; _composite = composite; _output = output;
             _horizontal = horizontal;
+            _cleanup = cleanup;
+            cleanup = null;
             horizontal = null;
             mask = null; blur = null; composite = null; output = null;
         }
@@ -52,6 +60,7 @@ internal sealed class SaAohueProcessor : IVideoEffectProcessor
             output?.Dispose();
             composite?.Dispose();
             blur?.Dispose();
+            cleanup?.Dispose();
             mask?.Dispose();
             horizontal?.Dispose();
         }
@@ -77,7 +86,7 @@ internal sealed class SaAohueProcessor : IVideoEffectProcessor
 
     public DrawDescription Update(EffectDescription effectDescription)
     {
-        if (_horizontal is null || _mask is null || _blur is null || _composite is null)
+        if (_horizontal is null || _mask is null || _cleanup is null || _blur is null || _composite is null)
             return effectDescription.DrawDescription;
         var frame = effectDescription.ItemPosition.Frame;
         var length = effectDescription.ItemDuration.Frame;
@@ -92,11 +101,24 @@ internal sealed class SaAohueProcessor : IVideoEffectProcessor
         }
         _mask.Threshold = (float)(Math.Round(_item.LineThreshold.GetValue(frame, length, fps)) / 255.0);
         _mask.Invert = _item.InvertLines ? 1f : 0f;
+        _mask.StrengthInfluence = (float)(_item.StrengthInfluence.GetValue(frame, length, fps) / 100.0);
+        _mask.Stability = (float)(_item.Stability.GetValue(frame, length, fps) / 100.0);
+        float pointSize = Math.Clamp((float)Math.Round(_item.PointNoiseSize.GetValue(frame, length, fps)), 0f, 3f);
+        _cleanup.PointSize = pointSize;
+        bool cleanupBypass = pointSize == 0;
+        bool cleanupChanged = cleanupBypass != _cleanupBypassed;
+        if (cleanupChanged)
+        {
+            using var cleanInput = cleanupBypass ? _mask.Output : _cleanup.Output;
+            _blur.SetInput(0, cleanInput, true);
+            _cleanupBypassed = cleanupBypass;
+        }
+        _composite.SideMode = (float)_item.SideMode;
         float radius = Math.Clamp((float)_item.Radius.GetValue(frame, length, fps), 0f, 512f);
         bool bypass = radius == 0;
-        if (bypass != _blurBypassed)
+        if (bypass != _blurBypassed || (bypass && cleanupChanged))
         {
-            using var maskInput = bypass ? _mask.Output : _blur.Output;
+            using var maskInput = bypass ? (_cleanupBypassed ? _mask.Output : _cleanup.Output) : _blur.Output;
             _composite.SetInput(1, maskInput, true);
             _blurBypassed = bypass;
         }
@@ -114,10 +136,12 @@ internal sealed class SaAohueProcessor : IVideoEffectProcessor
         ClearInput();
         _blur?.SetInput(0, null, true);
         _composite?.SetInput(1, null, true);
+        _cleanup?.SetInput(0, null, true);
         _mask?.SetInput(0, null, true);
         _output?.Dispose();
         _composite?.Dispose();
         _blur?.Dispose();
+        _cleanup?.Dispose();
         _mask?.Dispose();
         _horizontal?.Dispose();
     }

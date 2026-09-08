@@ -99,7 +99,7 @@ class YmmV02(unittest.TestCase):
         source = (ROOT / "ymm/SaAohueEffect.cs").read_text(encoding="utf-8")
         labels = re.findall(r'\[Display\(Name = "([^"]+)".*?Order = (\d+)\)\]', source)
         self.assertEqual([n for n, o in sorted(labels, key=lambda p: int(p[1]))],
-                         ["検出サイズ", "検出しきい値", "線を反転", "変化範囲", "コントラスト", "彩度", "輝度", "色相", "出力"])
+                         ["検出サイズ", "検出しきい値", "線を反転", "強弱の反映", "点ノイズ除去", "安定性", "適用する側", "変化範囲", "コントラスト", "彩度", "輝度", "色相", "出力"])
         self.assertNotIn("Vibrance", source)
         self.assertNotIn("RgbEncoding", source)
         self.assertIn('AnimationSlider("F1", "%", -100, 400)', source)

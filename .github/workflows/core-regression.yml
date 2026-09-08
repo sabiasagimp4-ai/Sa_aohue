@@ -13,6 +13,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+      - run: g++ -std=c++17 -O2 -Wall -Wextra -Werror tests/check_ymm_line_controls.cpp -o /tmp/ymm-controls && /tmp/ymm-controls
       - run: python3 tests/run_portable.py
       - run: python3 tests/run_portable.py --sanitize
   windows:
