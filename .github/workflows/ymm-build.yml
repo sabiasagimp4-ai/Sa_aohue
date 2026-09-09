@@ -19,6 +19,18 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
+      - name: Test Gaussian kernel normalization
+        run: dotnet run --project ymm/tests/KernelTests.csproj -c Release
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Test YMM4 reference and UI contracts
+        run: |
+          python -m pip install numpy
+          python tests/test_ymm_v02.py
+
       - name: Download latest YMM4 Lite
         shell: pwsh
         run: |
@@ -46,6 +58,7 @@ jobs:
         shell: pwsh
         run: |
           dotnet build ymm/SaAohueYmm.csproj -c Release "-p:YMM4DirPath=$env:YMM4_DIR" "-p:FxcPath=$env:FXC_PATH" "-p:D2DIncludePath=$env:D2D_INCLUDE"
+          if ($LASTEXITCODE -ne 0) { throw 'YMM4 build failed' }
           ./ymm/check-shaders.ps1 -FxcPath $env:FXC_PATH
 
       - name: Package
