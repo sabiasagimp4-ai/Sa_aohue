@@ -99,7 +99,7 @@ class YmmV02(unittest.TestCase):
         source = (ROOT / "ymm/SaAohueEffect.cs").read_text(encoding="utf-8")
         labels = re.findall(r'\[Display\(Name = "([^"]+)".*?Order = (\d+)\)\]', source)
         self.assertEqual([n for n, o in sorted(labels, key=lambda p: int(p[1]))],
-                         ["検出サイズ", "検出しきい値", "線を反転", "強弱の反映", "点ノイズ除去", "安定性", "適用する側", "変化範囲", "コントラスト", "彩度", "輝度", "色相", "出力"])
+                         ["検出サイズ", "検出しきい値", "線を反転", "強弱の反映", "点ノイズ除去", "安定性", "適用する側", "変化範囲", "コントラスト", "彩度", "輝度", "色相", "出力", "色の回り込み"])
         self.assertNotIn("Vibrance", source)
         self.assertNotIn("RgbEncoding", source)
         self.assertIn('AnimationSlider("F1", "%", -100, 400)', source)
@@ -119,6 +119,28 @@ class YmmV02(unittest.TestCase):
         self.assertIn("if (contrast != 1)", source)
         self.assertIn("if (!inGamut(target))", source)
         self.assertIn("max(0, 1 + amount * mask)", source)
+        self.assertIn("chromaField", source)
+        self.assertIn("colorBleed", source)
+        self.assertIn("D2DSampleInputAtPosition(3", source)
+        self.assertIn("mask <= 0 && (abs(colorBleed)", source)
+
+    def test_color_bleed_contract(self):
+        effect = (ROOT / "ymm/SaAohueEffect.cs").read_text(encoding="utf-8")
+        field = (ROOT / "ymm/ChromaFieldEffect.cs").read_text(encoding="utf-8")
+        shader = (ROOT / "ymm/Shaders/ChromaField.hlsl").read_text(encoding="utf-8")
+        project = (ROOT / "ymm/SaAohueYmm.csproj").read_text(encoding="utf-8")
+        processor = (ROOT / "ymm/SaAohueProcessor.cs").read_text(encoding="utf-8")
+        checker = (ROOT / "ymm/check-shaders.ps1").read_text(encoding="utf-8")
+        self.assertIn('AnimationSlider("F1", "%", -100, 100)', effect)
+        self.assertIn("public Animation ColorBleed", effect)
+        self.assertIn("SetOutputBuffer(BufferPrecision.PerChannel32Float", field)
+        self.assertIn("lab.y * alpha", shader)
+        self.assertIn("lab.z * alpha", shader)
+        self.assertIn("ChromaField.cso", project)
+        self.assertIn("D2D_INPUT_COUNT=4", project)
+        self.assertIn("chromaBlur.StandardDeviation = radius", processor)
+        self.assertIn("_composite.ColorBleed", processor)
+        self.assertIn("'ChromaField'", checker)
 
 
 if __name__ == "__main__":

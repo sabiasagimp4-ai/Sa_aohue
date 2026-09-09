@@ -32,6 +32,10 @@ public sealed class SaAohueEffect : VideoEffectBase
     [AnimationSlider("F1", "°", -180, 180)]
     public Animation HueShift { get; } = new(0, -180, 180);
 
+    [Display(Name = "色の回り込み", Description = "線の近くへ周囲の色を回り込ませる。負値で境界の色差を強調", Order = 13)]
+    [AnimationSlider("F1", "%", -100, 100)]
+    public Animation ColorBleed { get; } = new(0, -100, 100);
+
     [Display(Name = "出力", Description = "線マスクは効果が強い部分を白で表示", Order = 12)]
     [EnumComboBox]
     public SaAohueOutputMode OutputMode { get => _outputMode; set => Set(ref _outputMode, value); }
@@ -71,7 +75,7 @@ public sealed class SaAohueEffect : VideoEffectBase
 
     public override IVideoEffectProcessor CreateVideoEffect(IGraphicsDevicesAndContext devices) => new SaAohueProcessor(devices, this);
 
-    protected override IEnumerable<IAnimatable> GetAnimatables() => [DetectionScale, LineThreshold, StrengthInfluence, PointNoiseSize, Stability, Radius, Contrast, Amount, Brightness, HueShift];
+    protected override IEnumerable<IAnimatable> GetAnimatables() => [DetectionScale, LineThreshold, StrengthInfluence, PointNoiseSize, Stability, Radius, Contrast, Amount, Brightness, HueShift, ColorBleed];
 }
 
 // Keep serialized names and numeric values; v0.2 intentionally changes mask polarity.

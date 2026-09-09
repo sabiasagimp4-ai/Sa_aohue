@@ -15,9 +15,12 @@ internal sealed class SaAohueProcessor : IVideoEffectProcessor
     private readonly LineMaskEffect? _mask;
     private readonly PointCleanupEffect? _cleanup;
     private readonly GaussianBlur? _blur;
+    private readonly ChromaFieldEffect? _chromaField;
+    private readonly GaussianBlur? _chromaBlur;
     private readonly CompositeEffect? _composite;
     private readonly ID2D1Image? _output;
     private ID2D1Image? _input;
+    private bool _chromaBlurBypassed;
 
     public SaAohueProcessor(IGraphicsDevicesAndContext devices, SaAohueEffect item)
     {
@@ -26,6 +29,8 @@ internal sealed class SaAohueProcessor : IVideoEffectProcessor
         LineMaskEffect? mask = null;
         PointCleanupEffect? cleanup = null;
         GaussianBlur? blur = null;
+        ChromaFieldEffect? chromaField = null;
+        GaussianBlur? chromaBlur = null;
         CompositeEffect? composite = null;
         ID2D1Image? output = null;
         try
@@ -36,8 +41,12 @@ internal sealed class SaAohueProcessor : IVideoEffectProcessor
             blur = new GaussianBlur(devices.DeviceContext);
             blur.Optimization = GaussianBlurOptimization.Quality;
             blur.BorderMode = BorderMode.Soft;
+            chromaField = new ChromaFieldEffect(devices);
+            chromaBlur = new GaussianBlur(devices.DeviceContext);
+            chromaBlur.Optimization = GaussianBlurOptimization.Quality;
+            chromaBlur.BorderMode = BorderMode.Soft;
             composite = new CompositeEffect(devices);
-            if (!horizontal.IsEnabled || !mask.IsEnabled || !cleanup.IsEnabled || !composite.IsEnabled)
+            if (!horizontal.IsEnabled || !mask.IsEnabled || !cleanup.IsEnabled || !chromaField.IsEnabled || !composite.IsEnabled)
                 return;
             using (var horizontalOutput = horizontal.Output)
                 mask.SetInput(0, horizontalOutput, true);
@@ -47,19 +56,28 @@ internal sealed class SaAohueProcessor : IVideoEffectProcessor
                 blur.SetInput(0, cleanOutput, true);
             using (var blurredMask = blur.Output)
                 composite.SetInput(1, blurredMask, true);
+            using (var chromaFieldOutput = chromaField.Output)
+                chromaBlur.SetInput(0, chromaFieldOutput, true);
+            using (var blurredChroma = chromaBlur.Output)
+                composite.SetInput(2, blurredChroma, true);
             output = composite.Output;
-            _mask = mask; _blur = blur; _composite = composite; _output = output;
+            using (var cleanOutput = cleanup.Output)
+                composite.SetInput(3, cleanOutput, true);
+            _mask = mask; _blur = blur; _chromaField = chromaField; _chromaBlur = chromaBlur;
+            _composite = composite; _output = output;
             _horizontal = horizontal;
             _cleanup = cleanup;
             cleanup = null;
             horizontal = null;
-            mask = null; blur = null; composite = null; output = null;
+            mask = null; blur = null; chromaField = null; chromaBlur = null; composite = null; output = null;
         }
         finally
         {
             output?.Dispose();
             composite?.Dispose();
             blur?.Dispose();
+            chromaBlur?.Dispose();
+            chromaField?.Dispose();
             cleanup?.Dispose();
             mask?.Dispose();
             horizontal?.Dispose();
@@ -73,7 +91,10 @@ internal sealed class SaAohueProcessor : IVideoEffectProcessor
         _input = input;
         _horizontal?.SetInput(0, input, true);
         _mask?.SetInput(1, input, true);
+        _chromaField?.SetInput(0, input, true);
         _composite?.SetInput(0, input, true);
+        if (_chromaBlurBypassed)
+            _composite?.SetInput(2, input, true);
     }
 
     public void ClearInput()
@@ -81,12 +102,15 @@ internal sealed class SaAohueProcessor : IVideoEffectProcessor
         _input = null;
         _horizontal?.SetInput(0, null, true);
         _mask?.SetInput(1, null, true);
+        _chromaField?.SetInput(0, null, true);
         _composite?.SetInput(0, null, true);
+        if (_chromaBlurBypassed)
+            _composite?.SetInput(2, null, true);
     }
 
     public DrawDescription Update(EffectDescription effectDescription)
     {
-        if (_horizontal is null || _mask is null || _cleanup is null || _blur is null || _composite is null)
+        if (_horizontal is null || _mask is null || _cleanup is null || _blur is null || _chromaField is null || _chromaBlur is null || _composite is null)
             return effectDescription.DrawDescription;
         var frame = effectDescription.ItemPosition.Frame;
         var length = effectDescription.ItemDuration.Frame;
@@ -111,6 +135,7 @@ internal sealed class SaAohueProcessor : IVideoEffectProcessor
         {
             using var cleanInput = cleanupBypass ? _mask.Output : _cleanup.Output;
             _blur.SetInput(0, cleanInput, true);
+            _composite.SetInput(3, cleanInput, true);
             _cleanupBypassed = cleanupBypass;
         }
         _composite.SideMode = (float)_item.SideMode;
@@ -123,6 +148,15 @@ internal sealed class SaAohueProcessor : IVideoEffectProcessor
             _blurBypassed = bypass;
         }
         if (!bypass) _blur.StandardDeviation = radius;
+        float colorBleed = Math.Clamp((float)(_item.ColorBleed.GetValue(frame, length, fps) / 100.0), -1f, 1f);
+        _composite.ColorBleed = colorBleed;
+        bool chromaBypass = radius == 0 || MathF.Abs(colorBleed) < 1e-5f;
+        if (chromaBypass != _chromaBlurBypassed)
+        {
+            SetChromaInput(chromaBypass);
+            _chromaBlurBypassed = chromaBypass;
+        }
+        if (!chromaBypass) _chromaBlur.StandardDeviation = radius;
         _composite.Amount = (float)(_item.Amount.GetValue(frame, length, fps) / 100.0);
         _composite.Contrast = (float)_item.Contrast.GetValue(frame, length, fps);
         _composite.Brightness = (float)(_item.Brightness.GetValue(frame, length, fps) / 100.0);
@@ -131,16 +165,37 @@ internal sealed class SaAohueProcessor : IVideoEffectProcessor
         return effectDescription.DrawDescription;
     }
 
+    private void SetChromaInput(bool bypass)
+    {
+        if (bypass && _input is not null)
+        {
+            // With no active colour exchange the source image is a valid dummy
+            // input, and this disconnects the extra conversion/blur work from
+            // the composite graph.  The shader still guards the input by the
+            // ColorBleed value, so toggling is safe on an animated parameter.
+            _composite?.SetInput(2, _input, true);
+            return;
+        }
+        using var chromaInput = bypass ? _chromaField?.Output : _chromaBlur?.Output;
+        _composite?.SetInput(2, chromaInput, true);
+    }
+
     public void Dispose()
     {
         ClearInput();
         _blur?.SetInput(0, null, true);
+        _chromaBlur?.SetInput(0, null, true);
         _composite?.SetInput(1, null, true);
+        _composite?.SetInput(2, null, true);
+        _composite?.SetInput(3, null, true);
+        _chromaField?.SetInput(0, null, true);
         _cleanup?.SetInput(0, null, true);
         _mask?.SetInput(0, null, true);
         _output?.Dispose();
         _composite?.Dispose();
         _blur?.Dispose();
+        _chromaBlur?.Dispose();
+        _chromaField?.Dispose();
         _cleanup?.Dispose();
         _mask?.Dispose();
         _horizontal?.Dispose();
