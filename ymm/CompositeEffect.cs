@@ -14,6 +14,8 @@ internal sealed class CompositeEffect(IGraphicsDevicesAndContext devices) : D2D1
     public float Brightness { set => SetValue(3, value); }
     public float HueShift { set => SetValue(4, value); }
 
+    public float SideMode { set => SetValue(5, value); }
+
     [CustomEffect(2)]
     private sealed class Impl : D2D1CustomShaderEffectImplBase<Impl>
     {
@@ -24,6 +26,8 @@ internal sealed class CompositeEffect(IGraphicsDevicesAndContext devices) : D2D1
         [CustomEffectProperty(PropertyType.Float, 2)] public float OutputMode { get => _constants.OutputMode; set { _constants.OutputMode = Math.Clamp(MathF.Round(value), 0f, 2f); UpdateConstants(); } }
         [CustomEffectProperty(PropertyType.Float, 3)] public float Brightness { get => _constants.Brightness; set { _constants.Brightness = Math.Clamp(value, 0f, 2f); UpdateConstants(); } }
         [CustomEffectProperty(PropertyType.Float, 4)] public float HueShift { get => _constants.HueShift; set { _constants.HueShift = Math.Clamp(value, -180f, 180f); UpdateConstants(); } }
+
+        [CustomEffectProperty(PropertyType.Float, 5)] public float SideMode { get => _constants.SideMode; set { _constants.SideMode = Math.Clamp(MathF.Round(value), 0f, 2f); UpdateConstants(); } }
 
         public Impl() : base(ShaderResourceLoader.Get("Composite")) { }
         protected override void UpdateConstants() => drawInformation?.SetPixelShaderConstantBuffer(_constants);
@@ -38,7 +42,7 @@ internal sealed class CompositeEffect(IGraphicsDevicesAndContext devices) : D2D1
         private struct Constants
         {
             public float Amount, Contrast, OutputMode, Brightness;
-            public float HueShift, Padding0, Padding1, Padding2;
+            public float HueShift, SideMode, Padding1, Padding2;
         }
     }
 }

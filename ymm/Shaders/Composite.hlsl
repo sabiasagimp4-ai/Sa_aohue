@@ -1,12 +1,13 @@
 #define D2D_ENTRY main
 #include <d2d1effecthelpers.hlsli>
+#include "LineControls.hlsli"
 
 float amount;
 float contrast;
 float outputMode;
 float brightness;
 float hueShift;
-float padding0;
+float sideMode;
 float padding1;
 float padding2;
 
@@ -44,6 +45,13 @@ D2D_PS_ENTRY(main)
     float4 blurred = D2DSampleInputAtPosition(1, p);
     float mask = saturate(blurred.a > 0 ? blurred.r / blurred.a : 0);
     if (contrast != 1) mask = pow(mask, 1.0 / max(.1, contrast));
+    if (sideMode > .5 && blurred.r > 0 && source.a > 0)
+    {
+        float referenceLuma = blurred.g / blurred.r;
+        float sourceLuma = toLab(decodeSrgb(saturate(unpremultiply(source)))).x;
+        // A narrow continuous transition avoids introducing another hard gate.
+        mask *= SideWeight(sourceLuma, referenceLuma, sideMode);
+    }
     if (outputMode < .5 && mask <= 0) return source;
     if (outputMode > 1.5) { float v = 1 - mask; return float4(v * source.a, v * source.a, v * source.a, source.a); }
     if (outputMode > .5) { float v = mask; return float4(v * source.a, v * source.a, v * source.a, source.a); }

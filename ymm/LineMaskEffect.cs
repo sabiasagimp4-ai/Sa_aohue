@@ -10,6 +10,8 @@ internal sealed class LineMaskEffect(IGraphicsDevicesAndContext devices) : D2D1C
 {
     public float Threshold { set => SetValue(0, value); }
     public float Invert { set => SetValue(1, value); }
+    public float StrengthInfluence { set => SetValue(6, value); }
+    public float Stability { set => SetValue(7, value); }
     public void SetKernel(DogKernel kernel)
     {
         SetValue(2, kernel.Scale);
@@ -27,8 +29,14 @@ internal sealed class LineMaskEffect(IGraphicsDevicesAndContext devices) : D2D1C
         [CustomEffectProperty(PropertyType.Float, 3)] public float PositiveLobe { get => _constants.PositiveLobe; set { _constants.PositiveLobe = value; UpdateConstants(); } }
         [CustomEffectProperty(PropertyType.Float, 4)] public float SmallInverseSum { get => _constants.SmallInverseSum; set { _constants.SmallInverseSum = value; UpdateConstants(); } }
         [CustomEffectProperty(PropertyType.Float, 5)] public float LargeInverseSum { get => _constants.LargeInverseSum; set { _constants.LargeInverseSum = value; UpdateConstants(); } }
+        [CustomEffectProperty(PropertyType.Float, 6)] public float StrengthInfluence { get => _constants.StrengthInfluence; set { _constants.StrengthInfluence = Math.Clamp(value, 0f, 1f); UpdateConstants(); } }
+        [CustomEffectProperty(PropertyType.Float, 7)] public float Stability { get => _constants.Stability; set { _constants.Stability = Math.Clamp(value, 0f, 1f); UpdateConstants(); } }
         public Impl() : base(ShaderResourceLoader.Get("LineMask")) { }
-        protected override void UpdateConstants() => drawInformation?.SetPixelShaderConstantBuffer(_constants);
+        protected override void UpdateConstants()
+        {
+            drawInformation?.SetOutputBuffer(BufferPrecision.PerChannel32Float, ChannelDepth.Four);
+            drawInformation?.SetPixelShaderConstantBuffer(_constants);
+        }
         public override void MapInputRectsToOutputRect(RawRect[] inputRects, RawRect[] inputOpaqueSubRects, out RawRect outputRect, out RawRect outputOpaqueSubRect)
         {
             outputRect = inputRects[1];
@@ -47,7 +55,7 @@ internal sealed class LineMaskEffect(IGraphicsDevicesAndContext devices) : D2D1C
         private struct Constants
         {
             public float Threshold, Invert, Scale, PositiveLobe;
-            public float SmallInverseSum, LargeInverseSum, Padding0, Padding1;
+            public float SmallInverseSum, LargeInverseSum, StrengthInfluence, Stability;
             public float Left, Top, Right, Bottom;
         }
     }
