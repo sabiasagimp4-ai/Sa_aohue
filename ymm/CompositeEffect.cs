@@ -16,6 +16,8 @@ internal sealed class CompositeEffect(IGraphicsDevicesAndContext devices) : D2D1
 
     public float SideMode { set => SetValue(5, value); }
 
+    public float ColorBleed { set => SetValue(6, value); }
+
     [CustomEffect(2)]
     private sealed class Impl : D2D1CustomShaderEffectImplBase<Impl>
     {
@@ -28,6 +30,7 @@ internal sealed class CompositeEffect(IGraphicsDevicesAndContext devices) : D2D1
         [CustomEffectProperty(PropertyType.Float, 4)] public float HueShift { get => _constants.HueShift; set { _constants.HueShift = Math.Clamp(value, -180f, 180f); UpdateConstants(); } }
 
         [CustomEffectProperty(PropertyType.Float, 5)] public float SideMode { get => _constants.SideMode; set { _constants.SideMode = Math.Clamp(MathF.Round(value), 0f, 2f); UpdateConstants(); } }
+        [CustomEffectProperty(PropertyType.Float, 6)] public float ColorBleed { get => _constants.ColorBleed; set { _constants.ColorBleed = Math.Clamp(value, -1f, 1f); UpdateConstants(); } }
 
         public Impl() : base(ShaderResourceLoader.Get("Composite")) { }
         protected override void UpdateConstants() => drawInformation?.SetPixelShaderConstantBuffer(_constants);
@@ -36,13 +39,19 @@ internal sealed class CompositeEffect(IGraphicsDevicesAndContext devices) : D2D1
             outputRect = inputRects[0];
             outputOpaqueSubRect = default;
         }
-        public override void MapOutputRectToInputRects(RawRect outputRect, RawRect[] inputRects) { inputRects[0] = outputRect; inputRects[1] = outputRect; }
+        public override void MapOutputRectToInputRects(RawRect outputRect, RawRect[] inputRects)
+        {
+            inputRects[0] = outputRect;
+            inputRects[1] = outputRect;
+            inputRects[2] = outputRect;
+            inputRects[3] = outputRect;
+        }
 
         [StructLayout(LayoutKind.Sequential)]
         private struct Constants
         {
             public float Amount, Contrast, OutputMode, Brightness;
-            public float HueShift, SideMode, Padding1, Padding2;
+            public float HueShift, SideMode, ColorBleed, Padding2;
         }
     }
 }
