@@ -1,3 +1,4 @@
+#define D2D_REQUIRES_SCENE_POSITION
 #define D2D_ENTRY main
 #include <d2d1effecthelpers.hlsli>
 #include "LineControls.hlsli"

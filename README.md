@@ -8,7 +8,7 @@ YukkuriMovieMaker4版は[`ymm/README.md`](ymm/README.md)を参照してくださ
 ## 1. アルゴリズム
 
 1. 元RGB(プリマルチプライ解除後)をOKLab Lへ変換する。`RGB Encoding`でsRGB/Linear sRGBを指定する。
-2. 2スケールの円形ブラー(半径1px・1.6px、厳密なアンチエイリアス円盤平均)の差分(Difference of Gaussians)で線を検出する。`Line Threshold`(0〜0.03の可変しきい値)で二値化する。`Invert Lines`でどちら側の勾配を線とみなすか切り替える。
+2. 2スケールの円盤平均(半径1px・1.6px、厳密なアンチエイリアス)の差分で線を検出する。**実際には半径1pxの円盤は中心1タップに縮退するため、この段は「元のL − 9タップ円盤平均」という3×3のハイパスであり、2つのガウシアンの差(DoG)にはなっていない**(測定と影響は[docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md) 1-1)。`Line Threshold`(0〜0.03の可変しきい値)で二値化する。`Invert Lines`でどちら側の勾配を線とみなすか切り替える。
 3. 二値化した線を`Radius`でブラーし、`Contrast`でガンマ補正する(`Cavity^(1/Contrast)`)。この結果を疑似Cavityとして使う。
 4. Cavityに応じてOKLabのa/bを同倍率で増やす(`Amount`)。Lは維持し、色域外になる場合は倍率を二分探索で下げる。透明画素・非有限値・SDR色域外のHDR画素はCompositeでそのまま保持する。
 
@@ -16,7 +16,7 @@ YukkuriMovieMaker4版は[`ymm/README.md`](ymm/README.md)を参照してくださ
 
 ### ブラー実装
 
-手順2の1px/1.6px円盤ブラーは厳密なO(radius²)アンチエイリアス円盤平均(sub-pixel半径の差を保つ必要があるため)。
+手順2の1px/1.6px円盤ブラーは厳密なO(radius²)アンチエイリアス円盤平均(sub-pixel半径の差を保つ必要があるため)。半径1pxは中心1タップに縮退する(上記)。
 手順3の`Radius`ブラー(最大512px)は、AEの「高速ボックスブラー」と同じ手法 — 水平・垂直の移動窓平均(summed-runningsum、半径に関わらずO(w×h)/pass)を3回繰り返してガウシアンに近似する(各passの半径は`radius/√3`)。半径が大きいほど有利で、旧来の円盤/Vogelサンプリング(半径に応じてO(radius²)〜O(w×h×256))から置き換えた。
 
 ## 2. UI
@@ -27,8 +27,8 @@ YukkuriMovieMaker4版は[`ymm/README.md`](ymm/README.md)を参照してくださ
 | Radius | 二値化後のブラー半径(px, 1–512)。 |
 | Contrast | `Cavity^(1/Contrast)`。大きい値ほど弱い応答も持ち上がる。 |
 | Output Mode | Composite / Lines(黒線・白背景) / Lines Inverted(白線・黒背景)。 |
-| Invert Lines | DoGのどちら側の勾配を線とみなすか切り替える。 |
-| Line Threshold | DoGの二値化しきい値を0〜0.03の範囲で調整(0で微小な勾配も全て線、100で強い輪郭だけ)。既定50で0.015。 |
+| Invert Lines | 差分のどちら側の勾配を線とみなすか切り替える。 |
+| Line Threshold | 線検出の二値化しきい値を0〜0.03の範囲で調整(0で微小な勾配も全て線、100で強い輪郭だけ)。既定50で0.015。 |
 | RGB Encoding | sRGB / Linear sRGB。AEプロジェクトに合わせて手動指定してからLを取る。 |
 
 AEのプリマルチプライ画素をアンプリマルチプライして色を処理し、元アルファで戻します。チェックアウトした入力の近傍を読むため、SmartFXは全入力を要求します。外部レイヤーは不要です。
@@ -88,6 +88,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tests/build.ps1
 ```
 
 ## 7. 残っている問題
+
+実測と再現手順を伴う欠陥一覧は [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md)、機能追加の提案は [docs/FEATURE_PROPOSALS.md](docs/FEATURE_PROPOSALS.md) を参照。
 
 - Line Artは幾何・奥行きを一切見ません。輪郭・模様の密度をCavityの代わりに使う擬似AOで、「凹んでいるから暗い」という意味付けはありません。
 - DoGのカーネル半径(1px/1.6px)は固定値です。しきい値(`Line Threshold`)のみ可変で、低コントラストの写真では線がほとんど検出されず、逆に高周波ノイズの多い素材では線が過剰検出される可能性があります。
