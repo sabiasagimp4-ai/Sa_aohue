@@ -1,0 +1,93 @@
+{
+  "baseline_commit": "e5aaf011b029613ea33fce82d812683db7a5ab6e",
+  "implementation": "CPU mathematical prototype; no YMM/GPU performance claim",
+  "spread": {
+    "model": "Ideal normalized Gaussian, not Direct2D output",
+    "single_pixel_line": [
+      {
+        "sigma": 6,
+        "gaussian_peak": 0.06662513187754393,
+        "distance_peak": 1.0,
+        "chroma_gain_at_amount_100": 1.066625131877544
+      },
+      {
+        "sigma": 12,
+        "gaussian_peak": 0.03332336174290759,
+        "distance_peak": 1.0,
+        "chroma_gain_at_amount_100": 1.0333233617429076
+      },
+      {
+        "sigma": 24,
+        "gaussian_peak": 0.016664572777849974,
+        "distance_peak": 1.0,
+        "chroma_gain_at_amount_100": 1.01666457277785
+      },
+      {
+        "sigma": 48,
+        "gaussian_peak": 0.008333033623415947,
+        "distance_peak": 1.0,
+        "chroma_gain_at_amount_100": 1.008333033623416
+      }
+    ],
+    "five_vs_one_pixel_peak_ratio": 4.991332240132089
+  },
+  "colour_exchange": {
+    "fixture": "Same L; neutral left / blue right; opaque; 65x161",
+    "probe_x": 76,
+    "probe_y": 32,
+    "seed_count": 130,
+    "current_C_at_400_percent": 0.0,
+    "borrow_C": 0.013867792084110118,
+    "borrow_ab": [
+      -0.004978247234400672,
+      -0.01294344280944175
+    ],
+    "repel_ab": [
+      0.004978247234400672,
+      0.01294344280944175
+    ],
+    "max_L_change_before_output": 0.0,
+    "max_L_roundtrip_error": 4.699046929346196e-09,
+    "normal_sign_flip_error": 0.0
+  },
+  "isoluminant_boundary": {
+    "max_L_difference": 6.537408392404132e-10,
+    "max_abs_production_reference_DoG": 6.920775849617455e-07,
+    "cutoff": 0.04015686274509804,
+    "detected_by_either_DoG_polarity": 0,
+    "detected_by_colour_tensor": 130
+  },
+  "nearest_switch_failure": {
+    "probe_movement_px": 0.02,
+    "hard_nearest_delta_ab_jump": 0.08011821024347349,
+    "two_candidate_mix_delta_ab_jump": 5.555554983996749e-05,
+    "caveat": "Two-candidate mixing is an isolated alternative, not in exchange(); it can blend across unrelated boundaries."
+  },
+  "translation": {
+    "integer_shift": 1,
+    "max_aligned_error": 6.938893903907228e-18,
+    "caveat": "Integer translation only. Not subpixel temporal stability or optical flow."
+  },
+  "enclosure": {
+    "cases": {
+      "single_edge": {
+        "opposing_ray_score": 0.0,
+        "gaussian_density": 0.02662207300175423
+      },
+      "parallel_gap": {
+        "opposing_ray_score": 0.42934399737290396,
+        "gaussian_density": 0.05324414600350846
+      },
+      "closed_square": {
+        "opposing_ray_score": 0.5610769386691234,
+        "gaussian_density": 0.0526898205289909
+      },
+      "flat_stripe_texture": {
+        "opposing_ray_score": 0.42934399737290396,
+        "gaussian_density": 0.06250017571989526
+      }
+    },
+    "cost": "32 directions x 32 distances per evaluated point in this CPU reference; no GPU timing",
+    "limitation": "Flat stripes also look enclosed. This is 2D line arrangement, not proof of a physical recess."
+  }
+}
