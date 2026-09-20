@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -74,3 +74,21 @@ jobs:
           name: SaAohueYmm
           path: SaAohueYmm.zip
           if-no-files-found: error
+
+      - name: Publish GitHub Release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, '[release]')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          [xml]$project = Get-Content 'ymm/SaAohueYmm.csproj'
+          $version = @($project.Project.PropertyGroup.Version | Where-Object { $_ })[0]
+          if (-not $version) { throw 'Project version was not found' }
+          $tag = "v$version"
+
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $tag 'SaAohueYmm.zip' --clobber
+          } else {
+            gh release create $tag 'SaAohueYmm.zip' --target "${{ github.sha }}" --title "SaAohueYmm $tag" --generate-notes
+          }
